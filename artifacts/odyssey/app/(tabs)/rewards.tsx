@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -16,8 +17,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase, Reward } from "@/contexts/AppContext";
-import { ProgressBar } from "@/components/ProgressBar";
 import * as Haptics from "expo-haptics";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const CARD_GAP = 12;
+const CARD_H_PAD = 20;
+const CARD_WIDTH = (SCREEN_WIDTH - CARD_H_PAD * 2 - CARD_GAP) / 2;
+
+const TEMPLATE_COLORS = [
+  "#C8E6C9", "#BBDEFB", "#F8BBD0", "#FFE0B2",
+  "#E1BEE7", "#B2EBF2", "#DCEDC8", "#FFE082",
+];
 
 interface CommunityTemplate {
   id: number;
@@ -89,7 +99,6 @@ export default function RewardsScreen() {
           onPress: async () => {
             setRedeemingId(reward.id);
             try {
-              // Atomic endpoint: checks balance, linked adventures, marks redeemed
               const res = await fetch(`${apiBase()}/rewards/${reward.id}/redeem`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -152,17 +161,17 @@ export default function RewardsScreen() {
 
   const published = rewards.filter((r) => r.isPublished && !r.isDraft);
   const drafts = rewards.filter((r) => r.isDraft || !r.isPublished);
+  const previewTemplates = templates.slice(0, 4);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.headerBar, { paddingTop: topInset + 8, borderBottomColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Rewards</Text>
-        {wallet && (
-          <View style={[styles.coinPill, { backgroundColor: colors.coinBg }]}>
-            <Ionicons name="star" size={15} color={colors.coin} />
-            <Text style={[styles.coinPillText, { color: colors.coin }]}>{wallet.coins}</Text>
-          </View>
-        )}
+    <View style={[styles.container, { backgroundColor: "#fff" }]}>
+      {/* Header */}
+      <View style={[styles.headerBar, { paddingTop: topInset + 8 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.canGoBack() && router.back()}>
+          <Ionicons name="arrow-back" size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Rewards</Text>
+        <View style={styles.backBtn} />
       </View>
 
       <ScrollView
@@ -174,296 +183,302 @@ export default function RewardsScreen() {
             tintColor={colors.primary}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Published Rewards */}
+        {/* ── REWARDS (published) ── */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Active Rewards
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rewards</Text>
           {published.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Ionicons name="gift-outline" size={36} color={colors.mutedForeground} />
-              <Text style={[styles.emptyCardTitle, { color: colors.foreground }]}>No active rewards</Text>
-              <Text style={[styles.emptyCardSub, { color: colors.mutedForeground }]}>
-                Add a new reward below or use a community template
+              <Ionicons name="gift-outline" size={32} color={colors.mutedForeground} />
+              <Text style={[styles.emptyCardText, { color: colors.mutedForeground }]}>
+                No active rewards yet
               </Text>
             </View>
           ) : (
-            published.map((reward) => {
-              const pct = Math.min(100, ((wallet?.coins ?? 0) / reward.cost) * 100);
-              const canAfford = (wallet?.coins ?? 0) >= reward.cost;
-              const isRedeeming = redeemingId === reward.id;
-              return (
-                <TouchableOpacity
+            <View style={styles.grid}>
+              {published.map((reward) => (
+                <RewardCard
                   key={reward.id}
-                  style={[styles.rewardCard, { backgroundColor: colors.card }]}
-                  activeOpacity={0.9}
+                  reward={reward}
+                  wallet={wallet}
+                  redeemingId={redeemingId}
+                  colors={colors}
                   onPress={() => router.push(`/reward/${reward.id}`)}
-                >
-                  {reward.imageUrl ? (
-                    <Image source={{ uri: reward.imageUrl }} style={styles.rewardImage} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.rewardImagePlaceholder, { backgroundColor: canAfford ? "#DCFCE7" : colors.secondary }]}>
-                      <Ionicons name="gift" size={28} color={canAfford ? "#16A34A" : colors.primary} />
-                    </View>
-                  )}
-                  <View style={styles.rewardBody}>
-                    <View style={styles.rewardTitleRow}>
-                      <Text style={[styles.rewardName, { color: colors.foreground }]} numberOfLines={1}>
-                        {reward.name}
-                      </Text>
-                      {canAfford && !reward.redeemed && (
-                        <View style={styles.unlockedBadge}>
-                          <Text style={styles.unlockedText}>Unlocked!</Text>
-                        </View>
-                      )}
-                    </View>
-                    {reward.description ? (
-                      <Text style={[styles.rewardDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
-                        {reward.description}
-                      </Text>
-                    ) : null}
-                    <View style={styles.costRow}>
-                      <Ionicons name="star" size={13} color={colors.coin} />
-                      <Text style={[styles.costText, { color: colors.mutedForeground }]}>
-                        {wallet?.coins ?? 0} / {reward.cost} coins
-                      </Text>
-                    </View>
-                    <ProgressBar
-                      progress={pct}
-                      color={canAfford ? "#16A34A" : colors.primary}
-                      height={6}
-                    />
-                    {reward.redeemed && (
-                      <Text style={[styles.redeemedLabel, { color: "#16A34A" }]}>✓ Redeemed</Text>
-                    )}
-                  </View>
-                  <View style={styles.rewardActions}>
-                    {!reward.redeemed ? (
-                      <TouchableOpacity
-                        style={[
-                          styles.redeemBtn,
-                          { backgroundColor: canAfford ? "#16A34A" : colors.muted },
-                        ]}
-                        onPress={() => redeemReward(reward)}
-                        disabled={!canAfford || isRedeeming}
-                      >
-                        {isRedeeming ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <Ionicons
-                            name="checkmark"
-                            size={18}
-                            color={canAfford ? "#fff" : colors.mutedForeground}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    ) : null}
-                    <TouchableOpacity
-                      onPress={() => deleteReward(reward.id, reward.name)}
-                      style={styles.deleteBtn}
-                    >
-                      <Ionicons name="trash-outline" size={16} color={colors.destructive} />
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+                  onRedeem={() => redeemReward(reward)}
+                  onDelete={() => deleteReward(reward.id, reward.name)}
+                />
+              ))}
+            </View>
           )}
         </View>
 
-        {/* Add New Reward Button */}
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/reward/create")}
-        >
-          <Ionicons name="add" size={22} color="#fff" />
-          <Text style={styles.addBtnText}>Add new reward</Text>
-        </TouchableOpacity>
-
-        {/* Drafts */}
+        {/* ── DRAFTS ── */}
         {drafts.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Drafts</Text>
-            {drafts.map((reward) => (
-              <TouchableOpacity
-                key={reward.id}
-                style={[styles.draftCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => router.push(`/reward/${reward.id}`)}
-              >
-                <View style={[styles.draftDot, { backgroundColor: colors.coin }]} />
-                <Text style={[styles.draftName, { color: colors.foreground }]} numberOfLines={1}>
-                  {reward.name}
-                </Text>
-                <Text style={[styles.draftCost, { color: colors.mutedForeground }]}>
-                  {reward.cost} coins
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Drafts</Text>
+              <TouchableOpacity>
+                <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+            <View style={styles.grid}>
+              {drafts.slice(0, 4).map((reward) => (
+                <ContentCard
+                  key={reward.id}
+                  imageUrl={reward.imageUrl ?? null}
+                  name={reward.name}
+                  subtitle="Continue"
+                  placeholderColor={TEMPLATE_COLORS[reward.id % TEMPLATE_COLORS.length]}
+                  colors={colors}
+                  onPress={() => router.push(`/reward/${reward.id}`)}
+                />
+              ))}
+            </View>
           </View>
         )}
 
-        {/* Community Templates */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Community templates</Text>
-          <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>
-            Tap any template to add it to your drafts
-          </Text>
-          <View style={styles.templatesGrid}>
-            {templates.map((t, index) => (
-              <TouchableOpacity
-                key={t.id}
-                style={[styles.templateCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                onPress={() => addFromTemplate(index)}
-                disabled={addingTemplate === index}
-              >
-                <View style={[styles.templateIcon, { backgroundColor: colors.secondary }]}>
-                  {addingTemplate === index ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : (
-                    <Ionicons name="gift-outline" size={20} color={colors.primary} />
-                  )}
-                </View>
-                <Text style={[styles.templateName, { color: colors.foreground }]} numberOfLines={2}>
-                  {t.name}
-                </Text>
-                <Text style={[styles.templateCost, { color: colors.coin }]}>
-                  {t.cost} coins
-                </Text>
+        {/* ── COMMUNITY TEMPLATES ── */}
+        {previewTemplates.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Community templates</Text>
+              <TouchableOpacity>
+                <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+            <View style={styles.grid}>
+              {previewTemplates.map((t, index) => (
+                <TouchableOpacity
+                  key={t.id}
+                  activeOpacity={0.85}
+                  onPress={() => addFromTemplate(index)}
+                  disabled={addingTemplate === index}
+                >
+                  <View style={[styles.contentCard, { backgroundColor: colors.card }]}>
+                    <View
+                      style={[
+                        styles.contentCardImage,
+                        { backgroundColor: TEMPLATE_COLORS[index % TEMPLATE_COLORS.length] },
+                      ]}
+                    >
+                      {addingTemplate === index ? (
+                        <ActivityIndicator color={colors.primary} />
+                      ) : (
+                        <Ionicons name="gift-outline" size={32} color="rgba(0,0,0,0.35)" />
+                      )}
+                    </View>
+                    <View style={styles.contentCardBody}>
+                      <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>
+                        {t.name}
+                      </Text>
+                      <Text style={[styles.contentCardSub, { color: colors.mutedForeground }]}>
+                        By Phil G
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* ── ADD NEW REWARD ── */}
+        <TouchableOpacity
+          style={[styles.addBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.push("/reward/create")}
+          activeOpacity={0.88}
+        >
+          <Text style={styles.addBtnText}>Add new reward</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
+/* ─── Sub-components ─── */
+
+function RewardCard({
+  reward,
+  wallet,
+  redeemingId,
+  colors,
+  onPress,
+  onRedeem,
+  onDelete,
+}: {
+  reward: Reward;
+  wallet: any;
+  redeemingId: number | null;
+  colors: any;
+  onPress: () => void;
+  onRedeem: () => void;
+  onDelete: () => void;
+}) {
+  const canAfford = (wallet?.coins ?? 0) >= reward.cost;
+  const isRedeeming = redeemingId === reward.id;
+
+  return (
+    <TouchableOpacity
+      style={[styles.contentCard, { backgroundColor: colors.card }]}
+      activeOpacity={0.88}
+      onPress={onPress}
+      onLongPress={onDelete}
+    >
+      {reward.imageUrl ? (
+        <Image
+          source={{ uri: reward.imageUrl }}
+          style={styles.contentCardImage}
+          contentFit="cover"
+        />
+      ) : (
+        <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]}>
+          <Ionicons name="gift" size={32} color={canAfford ? "#16A34A" : colors.primary} />
+        </View>
+      )}
+      <View style={styles.contentCardBody}>
+        <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>
+          {reward.name}
+        </Text>
+        <View style={styles.coinRow}>
+          <View style={[styles.coinBadge, { backgroundColor: "#FFF3E0" }]}>
+            <Ionicons name="star" size={12} color="#F59E0B" />
+          </View>
+          <Text style={[styles.coinCount, { color: colors.foreground }]}>{reward.cost}</Text>
+        </View>
+        {reward.redeemed && (
+          <Text style={styles.redeemedLabel}>✓ Redeemed</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function ContentCard({
+  imageUrl,
+  name,
+  subtitle,
+  placeholderColor,
+  colors,
+  onPress,
+}: {
+  imageUrl: string | null;
+  name: string;
+  subtitle: string;
+  placeholderColor: string;
+  colors: any;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.contentCard, { backgroundColor: colors.card }]}
+      activeOpacity={0.88}
+      onPress={onPress}
+    >
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.contentCardImage} contentFit="cover" />
+      ) : (
+        <View style={[styles.contentCardImage, { backgroundColor: placeholderColor }]}>
+          <Ionicons name="gift-outline" size={32} color="rgba(0,0,0,0.3)" />
+        </View>
+      )}
+      <View style={styles.contentCardBody}>
+        <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>
+          {name}
+        </Text>
+        <Text style={[styles.contentCardSub, { color: colors.mutedForeground }]}>{subtitle}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+/* ─── Styles ─── */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   emptyText: { fontSize: 14 },
+
   headerBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: "#fff",
   },
-  title: { fontSize: 26, fontWeight: "800" },
-  coinPill: {
+  backBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  headerTitle: { fontSize: 17, fontWeight: "700" },
+
+  scrollContent: { paddingTop: 8, gap: 24 },
+
+  section: { paddingHorizontal: CARD_H_PAD, gap: 14 },
+
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    justifyContent: "space-between",
   },
-  coinPillText: { fontSize: 15, fontWeight: "800" },
-  scrollContent: { paddingTop: 16, gap: 8 },
-  section: { paddingHorizontal: 20, gap: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: "800" },
-  sectionSub: { fontSize: 13, marginTop: -4 },
+  sectionTitle: { fontSize: 20, fontWeight: "800" },
+  viewAll: { fontSize: 14, fontWeight: "500" },
+
   emptyCard: {
-    borderRadius: 20,
+    borderRadius: 14,
     padding: 28,
     alignItems: "center",
     gap: 10,
     borderWidth: 1,
     borderStyle: "dashed",
   },
-  emptyCardTitle: { fontSize: 16, fontWeight: "700" },
-  emptyCardSub: { fontSize: 13, textAlign: "center", lineHeight: 19 },
-  rewardCard: {
-    borderRadius: 16,
+  emptyCardText: { fontSize: 14 },
+
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: CARD_GAP,
+  },
+
+  contentCard: {
+    width: CARD_WIDTH,
+    borderRadius: 14,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
     elevation: 3,
+    backgroundColor: "#fff",
   },
-  rewardImage: { width: "100%", height: 140 },
-  rewardImagePlaceholder: {
+  contentCardImage: {
     width: "100%",
-    height: 100,
+    height: 110,
     alignItems: "center",
     justifyContent: "center",
   },
-  rewardBody: { padding: 14, gap: 7 },
-  rewardTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  rewardName: { fontSize: 16, fontWeight: "800", flex: 1 },
-  unlockedBadge: {
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
+  contentCardBody: {
+    padding: 10,
+    gap: 4,
   },
-  unlockedText: { fontSize: 11, fontWeight: "700", color: "#16A34A" },
-  rewardDesc: { fontSize: 13, lineHeight: 18 },
-  costRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  costText: { fontSize: 12, fontWeight: "600" },
-  redeemedLabel: { fontSize: 12, fontWeight: "700" },
-  rewardActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-  },
-  redeemBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  contentCardName: { fontSize: 14, fontWeight: "700", lineHeight: 19 },
+  contentCardSub: { fontSize: 12, fontWeight: "400" },
+
+  coinRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  coinBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
-  deleteBtn: { padding: 8 },
+  coinCount: { fontSize: 14, fontWeight: "700" },
+  redeemedLabel: { fontSize: 11, fontWeight: "700", color: "#16A34A", marginTop: 2 },
+
   addBtn: {
-    flexDirection: "row",
+    marginHorizontal: CARD_H_PAD,
+    paddingVertical: 16,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
+    marginTop: 4,
   },
   addBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  draftCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  draftDot: { width: 8, height: 8, borderRadius: 4 },
-  draftName: { flex: 1, fontSize: 15, fontWeight: "600" },
-  draftCost: { fontSize: 13 },
-  templatesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  templateCard: {
-    width: "47%",
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-    borderWidth: 1,
-    alignItems: "flex-start",
-  },
-  templateIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  templateName: { fontSize: 14, fontWeight: "700", lineHeight: 19 },
-  templateCost: { fontSize: 13, fontWeight: "700" },
 });

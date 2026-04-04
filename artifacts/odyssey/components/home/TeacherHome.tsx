@@ -305,14 +305,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   catCardIll: {
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingTop: 16,
+    paddingBottom: 12,
     paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 110,
+    minHeight: 88,
   },
-  catCardImg: { width: 90, height: 80 },
+  catCardImg: { width: 58, height: 50 },
   catCardLabel: {
     backgroundColor: "#fff",
     paddingVertical: 10,

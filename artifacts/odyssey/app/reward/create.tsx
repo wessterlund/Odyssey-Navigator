@@ -20,6 +20,21 @@ import { useApp, apiBase, Adventure } from "@/contexts/AppContext";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 
+async function uploadImage(localUri: string): Promise<string> {
+  const formData = new FormData();
+  if (Platform.OS === "web") {
+    const response = await fetch(localUri);
+    const blob = await response.blob();
+    const mime = blob.type || "image/jpeg";
+    formData.append("file", new Blob([blob], { type: mime }), "reward.jpg");
+  } else {
+    (formData as any).append("file", { uri: localUri, name: "reward.jpg", type: "image/jpeg" });
+  }
+  const res = await fetch(`${apiBase()}/upload`, { method: "POST", body: formData });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  return ((await res.json()) as { url: string }).url;
+}
+
 type Step = 1 | 2 | 3;
 
 export default function CreateRewardScreen() {
@@ -93,11 +108,22 @@ export default function CreateRewardScreen() {
     if (!currentLearner || !validate()) return;
     setSaving(true);
     try {
+      // Upload image to server first so the URL is durable across sessions
+      let finalImageUrl: string | null = null;
+      if (imageUri) {
+        try {
+          finalImageUrl = await uploadImage(imageUri);
+        } catch {
+          // Non-fatal: fall back to local URI for this session
+          finalImageUrl = imageUri;
+        }
+      }
+
       const body: any = {
         learnerId: currentLearner.id,
         name: name.trim(),
         description: description.trim() || null,
-        imageUrl: imageUri,
+        imageUrl: finalImageUrl,
         cost: parseInt(cost) || 20,
         startDate: startDate.trim() || null,
         endDate: endDate.trim() || null,

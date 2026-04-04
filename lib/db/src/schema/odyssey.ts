@@ -103,8 +103,8 @@ export const performanceTrackingTable = pgTable("performance_tracking", {
   learnerId: integer("learner_id")
     .notNull()
     .references(() => learnersTable.id, { onDelete: "cascade" }),
-  stepId: integer("step_id").references(() => stepsTable.id),
-  adventureId: integer("adventure_id").references(() => adventuresTable.id),
+  stepId: integer("step_id").references(() => stepsTable.id, { onDelete: "set null" }),
+  adventureId: integer("adventure_id").references(() => adventuresTable.id, { onDelete: "set null" }),
   completionTime: integer("completion_time"),
   attempts: integer("attempts").default(1).notNull(),
   success: boolean("success").default(true).notNull(),
@@ -134,7 +134,7 @@ export const voyageLogsTable = pgTable("voyage_logs", {
   voyagePathId: integer("voyage_path_id")
     .notNull()
     .references(() => voyagePathsTable.id, { onDelete: "cascade" }),
-  adventureId: integer("adventure_id").references(() => adventuresTable.id),
+  adventureId: integer("adventure_id").references(() => adventuresTable.id, { onDelete: "set null" }),
   learnerId: integer("learner_id")
     .notNull()
     .references(() => learnersTable.id, { onDelete: "cascade" }),

@@ -73,10 +73,12 @@ export default function RewardsScreen() {
 
   const redeemReward = async (reward: Reward) => {
     if (!currentLearner || !wallet) return;
+
     if (wallet.coins < reward.cost) {
       Alert.alert("Not enough coins", `You need ${reward.cost - wallet.coins} more coins.`);
       return;
     }
+
     Alert.alert(
       "Redeem Reward",
       `Redeem "${reward.name}" for ${reward.cost} coins?`,
@@ -87,23 +89,36 @@ export default function RewardsScreen() {
           onPress: async () => {
             setRedeemingId(reward.id);
             try {
-              await fetch(`${apiBase()}/wallet/learner/${currentLearner.id}/redeem`, {
+              // Atomic endpoint: checks balance, linked adventures, marks redeemed
+              const res = await fetch(`${apiBase()}/rewards/${reward.id}/redeem`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: reward.cost, note: `Redeemed: ${reward.name}` }),
+                body: JSON.stringify({ learnerId: currentLearner.id }),
               });
-              await fetch(`${apiBase()}/rewards/${reward.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ redeemed: true }),
-              });
+
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: "Redemption failed" }));
+                const msg =
+                  res.status === 422
+                    ? "Complete all linked adventures first before redeeming this reward."
+                    : res.status === 402
+                    ? `Not enough coins — need ${err.needed ?? reward.cost}.`
+                    : res.status === 409
+                    ? "This reward has already been redeemed."
+                    : err.error ?? "Failed to redeem reward.";
+                Alert.alert("Can't Redeem", msg);
+                return;
+              }
+
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              await loadWallet(currentLearner.id);
-              await loadRewards(currentLearner.id);
-              await loadTransactions(currentLearner.id);
+              await Promise.all([
+                loadWallet(currentLearner.id),
+                loadRewards(currentLearner.id),
+                loadTransactions(currentLearner.id),
+              ]);
               Alert.alert("🎉 Reward Redeemed!", `You redeemed "${reward.name}"!`);
             } catch {
-              Alert.alert("Error", "Failed to redeem reward");
+              Alert.alert("Error", "Failed to redeem — please check your connection.");
             }
             setRedeemingId(null);
           },

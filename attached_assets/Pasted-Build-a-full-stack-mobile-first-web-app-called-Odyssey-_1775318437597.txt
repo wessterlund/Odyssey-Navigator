@@ -1,0 +1,318 @@
+Build a full-stack mobile-first web app called Odyssey.
+
+Odyssey is an AI-powered behavioral learning platform where parents and teachers create structured learning experiences (“Adventures”) for children, supported by a coin-based reward system.
+
+The system MUST be personalized using a Learner Profile, and all AI features must adapt based on that profile.
+
+🧠 CORE SYSTEM LOOP
+
+Child completes step → earns coins → wallet updates → reward progress updates → reward unlocks → reward redeemed → behavior reinforced
+
+This loop must work end-to-end with real data persistence.
+
+⚙️ TECH STACK
+
+Frontend:
+
+React (Vite)
+Tailwind CSS
+Zustand (state)
+
+Backend:
+
+Supabase (preferred) OR Node.js + Express
+
+AI:
+
+OpenAI API (GPT-4o or latest)
+🧱 DATABASE MODELS
+LearnerProfile (CRITICAL)
+id
+name
+birthday
+age (derived)
+diagnosis
+therapies (array)
+school
+class
+capabilities (array of tags)
+interests (array)
+favorites (array)
+challenges (array)
+learningGoals (array)
+longTermGoals (array)
+Adventure
+id
+learnerId (foreign key)
+title
+description
+coinsPerStep (default 2)
+completionBonus (default 5)
+Step
+id
+adventureId
+instruction
+mediaUrl
+order
+Wallet
+learnerId
+coins
+lifetimeCoins
+Reward
+id
+learnerId
+name
+image
+cost
+cooldown
+Transaction
+id
+learnerId
+type ("earn" | "redeem")
+amount
+source ("step" | "completion" | "reward")
+createdAt
+PerformanceTracking (NEW)
+id
+learnerId
+stepId
+completionTime
+attempts
+success (boolean)
+📱 FEATURES
+👤 LEARNER PROFILE FLOW
+
+Multi-step form:
+
+Step 1:
+
+name, birthday, diagnosis, therapies, school, class
+
+Step 2:
+
+capabilities (tags)
+interests
+favorites
+challenges
+
+Step 3:
+
+learning goals
+long-term goals
+
+Save profile to database.
+
+🧩 ADVENTURE SYSTEM
+Create/edit adventures
+Add steps (reorderable)
+Attach media
+
+Each adventure is tied to a learner profile.
+
+🤖 AI ADVENTURE GENERATION (PROFILE-DRIVEN)
+
+Add “Generate with AI” button.
+
+INPUT
+goal (text)
+learnerId (REQUIRED)
+BACKEND AI CALL
+
+Fetch learner profile and send to OpenAI:
+
+Prompt:
+
+"You are an expert in autism support.
+
+Generate a structured learning activity for a child.
+
+Child Profile:
+
+Age: {age}
+Capabilities: {capabilities}
+Challenges: {challenges}
+Interests: {interests}
+Favorites: {favorites}
+Goals: {learningGoals}
+
+Goal: {user_goal}
+
+Return JSON:
+
+{
+"title": "...",
+"description": "...",
+"coinsPerStep": number,
+"completionBonus": number,
+"steps": [
+{
+"instruction": "...",
+"mediaSuggestion": "...",
+"tip": "..."
+}
+],
+"rewardSuggestions": [
+{
+"name": "...",
+"cost": number
+}
+]
+}
+
+Rules:
+
+Keep instructions simple
+Max 6–8 steps
+Adapt difficulty to child
+Use interests in examples
+"
+FRONTEND
+Show generated result
+Allow editing
+Save to DB
+🖼️ AI MEDIA SUGGESTIONS
+
+For each step:
+
+Generate search query using:
+instruction + learner interests
+
+Example:
+"child brushing teeth with favorite toy"
+
+Call:
+
+Unsplash or Pexels API
+
+Display:
+
+Suggested image
+Option to upload custom
+🎁 AI REWARD PLANNER (PROFILE-AWARE)
+
+Backend AI call:
+
+Use:
+
+interests
+favorites
+age
+
+Return:
+
+{
+"smallRewards": [...],
+"mediumRewards": [...],
+"bigRewards": [...]
+}
+
+Frontend:
+
+Show suggestions
+Allow user to select and save
+▶️ CHILD MODE (EXECUTION)
+Show one step at a time
+Button: “Done”
+
+On click:
+
+Add coins to wallet
+Create transaction
+Track performance:
+completionTime
+attempts
+Move to next step
+
+At completion:
+
+Add bonus coins
+Show reward progress
+💰 WALLET
+Show coins
+Show transaction history
+🎁 REWARD SYSTEM
+Show rewards
+Show progress (wallet / cost)
+
+If coins >= cost:
+→ mark unlocked
+
+Redeem:
+
+deduct coins
+create transaction
+🧠 ADAPTIVE LEARNING SYSTEM
+
+After each adventure:
+
+Analyze PerformanceTracking:
+
+IF:
+
+high attempts OR long completion time
+
+THEN:
+
+call AI:
+
+"Suggest improvements based on:
+
+profile
+performance data"
+
+Return:
+
+simplified steps
+recommendations
+
+Show:
+
+“We suggest improving this step”
+🤖 AI CO-PILOT (REAL-TIME)
+
+During step execution:
+
+IF:
+
+time > threshold OR repeated attempts
+
+THEN:
+
+call AI with:
+step
+profile
+performance
+
+Return short suggestion:
+
+Examples:
+
+“Model the action”
+“Break into smaller step”
+
+Show:
+
+small floating tip UI
+🎨 UI RULES
+Mobile-first
+Clean cards
+Blue primary (#2F80ED)
+Rounded corners
+Minimal UI
+⚠️ IMPORTANT RULES
+All AI must use learner profile
+All data must persist (no mock data)
+Keep UI simple
+AI suggestions must be short and actionable
+🚀 FINAL GOAL
+
+Deliver a working system where:
+
+User creates learner profile
+AI generates personalized adventures
+Child completes steps
+Coins are earned and tracked
+Rewards are meaningful and redeemable
+AI adapts based on real performance
+
+This must feel like an intelligent, personalized learning system, not separate features.

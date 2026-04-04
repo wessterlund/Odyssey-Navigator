@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "v7dSH2eeVALJ-JauTZ_K1"
+uri = "file://artifacts/odyssey/assets/images/icon.png"
+type = "image"
+title = "odyssey app icon"

@@ -1,0 +1,254 @@
+Update the existing Odyssey app to implement:
+
+1. Real-time video recording for adventure steps
+2. Child completion summary with coins earned
+3. Parent-controlled Reward Configuration system
+4. Child reward redemption flow (no reward creation by child)
+
+All features must integrate with:
+
+* Adventure system
+* Wallet (coins)
+* Learner profile
+* Database (Supabase or backend)
+
+---
+
+# 🎥 1. REAL-TIME VIDEO RECORDING (STEP CREATION)
+
+When parent clicks “Record” on a step:
+
+* Open camera using `getUserMedia`
+* Allow:
+
+  * Start recording
+  * Stop
+  * Retake
+  * Confirm
+
+After recording:
+
+* Upload video
+* Save `mediaUrl` to step
+
+---
+
+# 🧒 2. CHILD COMPLETION SUMMARY
+
+When child finishes an adventure:
+
+---
+
+## Screen
+
+Show:
+
+* Celebration UI
+* Message:
+  “Woohoo! Great job!”
+
+---
+
+## Summary
+
+Display:
+
+* Total coins earned
+* Breakdown:
+
+  * Per step coins
+  * Completion bonus
+
+---
+
+## Actions
+
+Buttons:
+
+1. “Redeem Reward”
+2. “Back to Home”
+
+❌ REMOVE:
+
+* Any ability for child to create rewards
+
+---
+
+# 🎁 3. REWARD SYSTEM (PARENT-CONTROLLED ONLY)
+
+---
+
+## Core Rule (CRITICAL)
+
+* ONLY parents can create and configure rewards
+* Children can ONLY:
+
+  * View rewards
+  * Track progress
+  * Redeem rewards
+
+---
+
+# 🧩 4. REWARD CONFIGURATION MODULE (PARENT)
+
+Based on attached UI screens.
+
+---
+
+## Entry
+
+Rewards tab → “Add new reward”
+
+---
+
+## REWARD MODEL
+
+Reward:
+
+* id
+* learnerId
+* name
+* description
+* image
+* cost (coins needed)
+* startDate
+* endDate
+* timeWindow
+* linkedAdventures
+* assignedChildren
+* isDraft
+* isPublished
+
+---
+
+## CREATE REWARD FLOW
+
+### Step 1: Basic Info
+
+* Name
+* Description
+* Image (upload or camera)
+
+---
+
+### Step 2: Conditions
+
+* Start date / End date
+* Time window (e.g., 7:00–8:00)
+* Assigned children
+* Linked adventures
+* Coins required
+
+---
+
+### Step 3: Save
+
+* Save as Draft
+* Publish
+
+---
+
+## DRAFT SYSTEM
+
+* Draft rewards visible in “Drafts”
+* Editable anytime
+
+---
+
+## COMMUNITY TEMPLATES
+
+* Parent can select pre-built rewards
+* Duplicate and customize
+
+---
+
+# 🎁 5. CHILD REWARD EXPERIENCE
+
+---
+
+## Rewards Screen
+
+Child sees:
+
+* Reward cards:
+
+  * Image
+  * Name
+  * Cost
+  * Progress bar (coins / cost)
+
+---
+
+## Unlock Logic
+
+IF:
+wallet.coins >= reward.cost
+
+→ Show:
+“Unlocked”
+
+---
+
+## Redemption Flow
+
+When child taps reward:
+
+1. Show confirmation
+2. Deduct coins
+3. Create transaction
+4. Show success screen:
+   “Reward Redeemed 🎉”
+
+---
+
+# 🔗 6. REWARD + ADVENTURE CONNECTION
+
+Rewards can be:
+
+* Global
+* OR linked to specific adventures
+
+---
+
+# 💰 7. COIN FLOW (UNCHANGED)
+
+* Step completion → +2 coins
+* Adventure completion → +5 coins
+
+---
+
+# 📊 8. STATE MANAGEMENT (ZUSTAND)
+
+Add:
+
+* recordingState
+* sessionCoinsEarned
+* activeRewardSelection
+
+---
+
+# ⚠️ IMPORTANT RULES
+
+* Children must NOT create or edit rewards
+* Reward conditions must be enforced
+* Parent has full control
+* Child UI must remain simple
+
+---
+
+# 🚀 FINAL GOAL
+
+Deliver a system where:
+
+* Parent creates and configures rewards with conditions
+* Parent records or uploads step media
+* Child completes adventures and earns coins
+* Child sees progress toward rewards
+* Child redeems rewards
+
+This must enforce:
+
+Parent = control system
+Child = experience + motivation
+
+NOT interchangeable roles.

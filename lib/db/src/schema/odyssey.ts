@@ -71,10 +71,19 @@ export const rewardsTable = pgTable("rewards", {
     .notNull()
     .references(() => learnersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  description: text("description"),
   imageUrl: text("image_url"),
   cost: integer("cost").notNull(),
   cooldown: integer("cooldown").default(0),
   redeemed: boolean("redeemed").default(false),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  timeWindow: text("time_window"),
+  linkedAdventures: jsonb("linked_adventures").$type<number[]>().default([]),
+  isDraft: boolean("is_draft").default(false).notNull(),
+  isPublished: boolean("is_published").default(true).notNull(),
+  isTemplate: boolean("is_template").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const transactionsTable = pgTable("transactions", {

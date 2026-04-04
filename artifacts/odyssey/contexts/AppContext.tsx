@@ -61,10 +61,19 @@ export interface Reward {
   id: number;
   learnerId: number;
   name: string;
+  description?: string;
   imageUrl?: string;
   cost: number;
   cooldown?: number;
   redeemed?: boolean;
+  startDate?: string;
+  endDate?: string;
+  timeWindow?: string;
+  linkedAdventures?: number[];
+  isDraft?: boolean;
+  isPublished?: boolean;
+  isTemplate?: boolean;
+  createdAt?: string;
 }
 
 export interface Transaction {

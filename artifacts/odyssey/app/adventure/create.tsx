@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -61,7 +61,9 @@ export default function CreateAdventureScreen() {
 
   const [cameraVisible, setCameraVisible] = useState(false);
   const [cameraTargetStep, setCameraTargetStep] = useState<number | null>(null);
+  const cameraTargetStepRef = useRef<number | null>(null);
   const [uploadingStep, setUploadingStep] = useState<number | null>(null);
+  const [replaceMenuStep, setReplaceMenuStep] = useState<number | null>(null);
 
   const generateAdventure = async () => {
     if (!currentLearner || !goal.trim()) {
@@ -196,20 +198,24 @@ export default function CreateAdventureScreen() {
   };
 
   const openCamera = (index: number) => {
+    cameraTargetStepRef.current = index;
     setCameraTargetStep(index);
     setCameraVisible(true);
+    setReplaceMenuStep(null);
   };
 
   const handleCameraConfirm = (media: CapturedMedia) => {
-    if (cameraTargetStep === null) return;
-    const updated = [...steps];
-    updated[cameraTargetStep] = {
-      ...updated[cameraTargetStep],
-      mediaUrl: media.uri,
-      mediaType: media.type,
-    };
-    setSteps(updated);
+    const idx = cameraTargetStepRef.current;
+    if (idx === null) return;
+    // Functional updater avoids stale-closure on steps array
+    setSteps((prev) => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], mediaUrl: media.uri, mediaType: media.type };
+      return updated;
+    });
+    cameraTargetStepRef.current = null;
     setCameraTargetStep(null);
+    setCameraVisible(false); // close modal here, not inside CameraModal
   };
 
   if (!currentLearner) {
@@ -381,23 +387,60 @@ export default function CreateAdventureScreen() {
                   <MediaPreview
                     uri={step.mediaUrl}
                     mediaType={step.mediaType ?? "image"}
-                    style={styles.mediaPreview}
+                    style={StyleSheet.absoluteFillObject}
                   />
                   <View style={styles.mediaPreviewOverlay}>
-                    <TouchableOpacity
-                      style={styles.mediaReplaceBtn}
-                      onPress={() => {
-                        Alert.alert("Replace Media", "Choose source:", [
-                          { text: "Gallery / Files", onPress: () => pickImageForStep(index, "gallery") },
-                          { text: "Camera", onPress: () => openCamera(index) },
-                          { text: "Remove", style: "destructive", onPress: () => removeMediaFromStep(index) },
-                          { text: "Cancel", style: "cancel" },
-                        ]);
-                      }}
-                    >
-                      <Ionicons name="camera" size={16} color="#fff" />
-                      <Text style={styles.mediaReplaceBtnText}>Replace</Text>
-                    </TouchableOpacity>
+                    {replaceMenuStep === index ? (
+                      // Web-friendly inline replace menu
+                      <View style={[styles.replaceMenu, { backgroundColor: colors.card }]}>
+                        <TouchableOpacity
+                          style={styles.replaceMenuItem}
+                          onPress={() => { pickImageForStep(index, "gallery"); setReplaceMenuStep(null); }}
+                        >
+                          <Ionicons name="images-outline" size={15} color={colors.foreground} />
+                          <Text style={[styles.replaceMenuText, { color: colors.foreground }]}>Gallery</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.replaceMenuItem}
+                          onPress={() => { openCamera(index); setReplaceMenuStep(null); }}
+                        >
+                          <Ionicons name="camera-outline" size={15} color={colors.foreground} />
+                          <Text style={[styles.replaceMenuText, { color: colors.foreground }]}>Camera</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.replaceMenuItem}
+                          onPress={() => { removeMediaFromStep(index); setReplaceMenuStep(null); }}
+                        >
+                          <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                          <Text style={[styles.replaceMenuText, { color: "#EF4444" }]}>Remove</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.replaceMenuItem}
+                          onPress={() => setReplaceMenuStep(null)}
+                        >
+                          <Ionicons name="close" size={15} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.mediaReplaceBtn}
+                        onPress={() => {
+                          if (Platform.OS === "web") {
+                            setReplaceMenuStep(index);
+                          } else {
+                            Alert.alert("Replace Media", "Choose source:", [
+                              { text: "Gallery / Files", onPress: () => pickImageForStep(index, "gallery") },
+                              { text: "Camera", onPress: () => openCamera(index) },
+                              { text: "Remove", style: "destructive", onPress: () => removeMediaFromStep(index) },
+                              { text: "Cancel", style: "cancel" },
+                            ]);
+                          }
+                        }}
+                      >
+                        <Ionicons name="camera" size={16} color="#fff" />
+                        <Text style={styles.mediaReplaceBtnText}>Replace</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               ) : (
@@ -542,6 +585,26 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   mediaReplaceBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  replaceMenu: {
+    borderRadius: 12,
+    padding: 6,
+    gap: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    minWidth: 120,
+  },
+  replaceMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  replaceMenuText: { fontSize: 13, fontWeight: "600" },
   addStepBtn: {
     flexDirection: "row",
     alignItems: "center",

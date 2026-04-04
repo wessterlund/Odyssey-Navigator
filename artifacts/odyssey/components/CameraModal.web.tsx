@@ -136,16 +136,14 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
         setProcessingPhase("attaching");
         await new Promise((r) => setTimeout(r, 80));
         stopStream();
+        // onConfirm closes the modal via parent's handleCameraConfirm → setCameraVisible(false)
         onConfirm({ uri: url, type });
-        setCameraState("idle");
-        setRecordingDuration(0);
-        onClose();
       } catch {
         setError("Upload failed — please try again.");
         setCameraState("idle");
       }
     },
-    [stopStream, onConfirm, onClose],
+    [stopStream, onConfirm],
   );
 
   const capturePhoto = useCallback(async () => {

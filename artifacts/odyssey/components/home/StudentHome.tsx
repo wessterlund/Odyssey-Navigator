@@ -10,6 +10,7 @@ import {
   Dimensions,
   Animated,
   Image,
+  ImageBackground,
 } from "react-native";
 
 import { useRouter } from "expo-router";
@@ -20,6 +21,7 @@ import * as Haptics from "expo-haptics";
 
 const ADVENTURE_ICON   = require("@/assets/images/adventure-icon.png");
 const OCTOPUS_MASCOT   = require("@/assets/images/octopus-mascot.png");
+const OCEAN_BG_IMAGE   = require("@/assets/images/ocean-bg.png");
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -92,7 +94,11 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
     <View style={styles.root}>
       {/* ── Full-bleed ocean background ──────────────── */}
       <View style={StyleSheet.absoluteFill}>
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: OCEAN_BG }]} />
+        <ImageBackground
+          source={OCEAN_BG_IMAGE}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
         {/* Decorative bubbles — static positions */}
         <Bubble x={-30} y={80}  size={120} opacity={0.6} />
         <Bubble x={SCREEN_W - 60} y={40}  size={90}  opacity={0.5} />

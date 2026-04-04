@@ -210,16 +210,22 @@ export default function CreateAdventureScreen() {
     setReplaceMenuStep(null);
   };
 
-  // attachVideoToStep — called by CameraModal's onConfirm once upload completes
+  // attachVideoToStep — called immediately with blob URL for instant preview
   const handleCameraConfirm = (media: CapturedMedia) => {
     const uid = activeStepUidRef.current;
     if (!uid) return;
-    // Functional updater + uid match: immune to array-index changes and stale closures
     setSteps((prev) =>
       prev.map((s) => (s._uid === uid ? { ...s, mediaUrl: media.uri, mediaType: media.type } : s))
     );
     activeStepUidRef.current = null;
-    setCameraVisible(false);
+    setCameraVisible(false); // close modal instantly — preview is already visible
+  };
+
+  // Called after background upload completes — swaps the blob: URL with the server URL
+  const handleMediaReplace = (oldUri: string, newUri: string) => {
+    setSteps((prev) =>
+      prev.map((s) => (s.mediaUrl === oldUri ? { ...s, mediaUrl: newUri } : s))
+    );
   };
 
   if (!currentLearner) {
@@ -252,6 +258,7 @@ export default function CreateAdventureScreen() {
         visible={cameraVisible}
         onClose={() => { setCameraVisible(false); activeStepUidRef.current = null; }}
         onConfirm={handleCameraConfirm}
+        onReplace={handleMediaReplace}
       />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 40 }]}>

@@ -1,0 +1,220 @@
+The current video recording feature is NOT working correctly.
+
+Do NOT add new features.
+DEBUG and REPLACE the implementation with a minimal working version.
+
+---
+
+# 🎯 GOAL (NON-NEGOTIABLE)
+
+When user clicks "Record" on a step:
+
+1. Camera opens
+2. User clicks "Start"
+3. User clicks "Stop"
+4. Video is:
+
+   * successfully created (Blob)
+   * uploaded
+   * attached to the correct step
+5. Video preview appears inside that step
+
+---
+
+# ⚠️ IMPORTANT CONSTRAINTS
+
+* DO NOT use ffmpeg
+* DO NOT compress video yet
+* DO NOT over-engineer
+* FOCUS on making recording + attach work FIRST
+
+---
+
+# 🧩 STEP 1 — VERIFY CAMERA WORKS
+
+Replace your camera code with THIS EXACT version:
+
+```js
+async function openCamera(videoElement) {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true,
+  });
+
+  videoElement.srcObject = stream;
+  videoElement.play();
+
+  return stream;
+}
+```
+
+---
+
+# 🧩 STEP 2 — FIX RECORDING (THIS IS WHERE IT BREAKS)
+
+Use THIS EXACT implementation:
+
+```js
+let mediaRecorder;
+let chunks = [];
+
+function startRecording(stream) {
+  chunks = [];
+
+  mediaRecorder = new MediaRecorder(stream);
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) {
+      chunks.push(e.data);
+    }
+  };
+
+  mediaRecorder.start();
+}
+```
+
+---
+
+# 🧩 STEP 3 — STOP RECORDING (CRITICAL FIX)
+
+Most bugs happen here. Replace with:
+
+```js
+function stopRecording(onComplete) {
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(chunks, { type: "video/webm" });
+    onComplete(blob);
+  };
+
+  mediaRecorder.stop();
+}
+```
+
+---
+
+# 🧩 STEP 4 — VERIFY BLOB BEFORE ANYTHING ELSE
+
+Add THIS DEBUG:
+
+```js
+console.log("Recorded blob size:", blob.size);
+```
+
+If size is 0 → recording is broken. Fix this FIRST.
+
+---
+
+# 🧩 STEP 5 — ATTACH TO CORRECT STEP (COMMON BUG)
+
+Ensure you are storing the step ID BEFORE recording:
+
+```js
+const [activeStepId, setActiveStepId] = useState(null);
+```
+
+When clicking record:
+
+```js
+setActiveStepId(step.id);
+```
+
+---
+
+# 🧩 STEP 6 — TEMPORARY PREVIEW (SKIP UPLOAD FIRST)
+
+Before upload, DO THIS:
+
+```js
+const previewUrl = URL.createObjectURL(blob);
+attachVideoToStep(activeStepId, previewUrl);
+```
+
+If preview does NOT show → your problem is NOT upload.
+
+---
+
+# 🧩 STEP 7 — ONLY AFTER PREVIEW WORKS → ADD UPLOAD
+
+```js
+async function uploadVideo(blob) {
+  const file = new File([blob], "video.webm");
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+  return data.url;
+}
+```
+
+---
+
+# 🧩 STEP 8 — FINAL FLOW
+
+```js
+stopRecording(async (blob) => {
+  const url = URL.createObjectURL(blob);
+  attachVideoToStep(activeStepId, url);
+
+  // THEN upload in background
+  uploadVideo(blob).then((uploadedUrl) => {
+    attachVideoToStep(activeStepId, uploadedUrl);
+  });
+});
+```
+
+---
+
+# 🧱 STEP 9 — STEP UPDATE FUNCTION
+
+```js
+function attachVideoToStep(stepId, url) {
+  setSteps((prev) =>
+    prev.map((step) =>
+      step.id === stepId
+        ? { ...step, mediaUrl: url, mediaType: "video" }
+        : step
+    )
+  );
+}
+```
+
+---
+
+# 🖼️ STEP 10 — UI (REQUIRED)
+
+```jsx
+{step.mediaUrl && (
+  <video src={step.mediaUrl} controls className="w-full rounded" />
+)}
+```
+
+---
+
+# 🚨 DEBUG CHECKLIST (STOP IF FAILS)
+
+Check in order:
+
+1. Does camera open?
+2. Does recording start?
+3. Does stop trigger?
+4. Is blob size > 0?
+5. Does preview URL work?
+6. Does step update?
+
+DO NOT proceed until each works.
+
+---
+
+# 🚀 FINAL GOAL
+
+A MINIMAL working flow:
+
+Record → Stop → Blob created → Preview shown → Step updated
+
+Only after this works, optimize.

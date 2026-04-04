@@ -27,6 +27,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onConfirm: (media: CapturedMedia) => void;
+  onReplace?: (oldUri: string, newUri: string) => void; // used by web version only
 };
 
 type CameraState = "idle" | "recording" | "processing";

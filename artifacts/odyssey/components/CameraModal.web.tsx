@@ -19,10 +19,10 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onConfirm: (media: CapturedMedia) => void;
+  onReplace?: (oldUri: string, newUri: string) => void;
 };
 
-type CameraState = "idle" | "recording" | "processing";
-type ProcessingPhase = "uploading" | "attaching";
+type CameraState = "idle" | "recording" | "uploading";
 
 async function uploadBlob(blob: Blob, filename: string): Promise<string> {
   const formData = new FormData();
@@ -45,52 +45,31 @@ function pickMimeType(): string {
   return "video/webm";
 }
 
-export function CameraModal({ visible, onClose, onConfirm }: Props) {
-  // --- Stable callback refs: always current, never stale ---
+export function CameraModal({ visible, onClose, onConfirm, onReplace }: Props) {
+  // --- Always-fresh callback refs (updated every render, no stale closure possible) ---
   const onConfirmRef = useRef(onConfirm);
   const onCloseRef = useRef(onClose);
-  onConfirmRef.current = onConfirm;   // update every render, no useEffect needed
+  const onReplaceRef = useRef(onReplace);
+  onConfirmRef.current = onConfirm;
   onCloseRef.current = onClose;
+  onReplaceRef.current = onReplace;
 
-  // --- Media stream state ---
+  // --- Hardware refs ---
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Direct ref to the <video> DOM element — avoids getElementById which fails in Modal portals
+  // Direct React ref to the <video> element — getElementById fails in Modal portals
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // --- UI state ---
   const [facing, setFacing] = useState<"user" | "environment">("environment");
   const [mode, setMode] = useState<"photo" | "video">("video");
   const [cameraState, setCameraState] = useState<CameraState>("idle");
-  const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>("uploading");
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-
-  // --- processAndAttach stored in a ref so recorder.onstop always has the latest ---
-  // Assigned on every render so it always closes over fresh state setters and refs.
-  const processAndAttachRef = useRef<(blob: Blob, type: "image" | "video") => Promise<void>>();
-  processAndAttachRef.current = async (blob, type) => {
-    setCameraState("processing");
-    setError(null);
-    setProcessingPhase("uploading");
-    try {
-      const ext = type === "video" ? "webm" : "jpg";
-      const url = await uploadBlob(blob, `capture.${ext}`);
-      setProcessingPhase("attaching");
-      await new Promise((r) => setTimeout(r, 80));
-      // Stop stream before handing off
-      stopStream();
-      // onConfirmRef.current is always the latest handleCameraConfirm from create.tsx
-      onConfirmRef.current({ uri: url, type });
-    } catch (e) {
-      console.error("[CameraModal] upload error:", e);
-      setError("Upload failed — please try again.");
-      setCameraState("idle");
-    }
-  };
+  const [uploading, setUploading] = useState(false);
 
   // --- Stream management ---
   const stopStream = () => {
@@ -104,17 +83,18 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     }
   };
 
+  // Spec Step 1 — openCamera: get stream, attach to video element
   const startStream = async (facingMode: "user" | "environment") => {
     stopStream();
+    setError(null);
+    setPermissionDenied(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: true,
       });
       streamRef.current = stream;
-      setPermissionDenied(false);
-      // videoRef.current is set because React commits the DOM before effects fire.
-      // No getElementById/setTimeout needed — the ref is always the live element.
+      // videoRef.current is guaranteed set here: React commits refs before effects fire
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
@@ -124,13 +104,12 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     }
   };
 
-  // Start/stop camera when visibility changes
   useEffect(() => {
     if (visible) {
-      setError(null);
-      setPermissionDenied(false);
       setCameraState("idle");
       setRecordingDuration(0);
+      setError(null);
+      setUploading(false);
       setMode("video");
       startStream("environment");
     } else {
@@ -140,7 +119,6 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  // --- Handlers ---
   const handleClose = () => {
     if (recorderRef.current && cameraState === "recording") {
       recorderRef.current.stop();
@@ -152,7 +130,76 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     onCloseRef.current();
   };
 
-  const capturePhoto = async () => {
+  // Spec Step 2 — startRecording: create MediaRecorder, set ondataavailable, start
+  // NOTE: onstop is NOT set here — it is set inside stopRecording (Spec Step 3)
+  const startRecording = () => {
+    if (!streamRef.current || cameraState !== "idle") return;
+    const mimeType = pickMimeType();
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(streamRef.current, { mimeType });
+    } catch {
+      // Fallback without codec params
+      recorder = new MediaRecorder(streamRef.current);
+    }
+    chunksRef.current = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    recorder.start(); // no timeslice — fires ondataavailable once at stop
+    recorderRef.current = recorder;
+    setCameraState("recording");
+    setRecordingDuration(0);
+    timerRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000);
+  };
+
+  // Spec Step 3 — stopRecording: set onstop THEN call stop()
+  // Spec Step 6-8: immediate blob URL preview → background server upload → URL swap
+  const stopRecording = () => {
+    const recorder = recorderRef.current;
+    if (!recorder || cameraState !== "recording") return;
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    // CRITICAL: set onstop before stop() per spec
+    recorder.onstop = async () => {
+      const cleanMime = (recorder.mimeType || "video/webm").split(";")[0];
+      const blob = new Blob(chunksRef.current, { type: cleanMime });
+
+      // Spec Step 4 — debug blob size
+      console.log("[CameraModal] Recorded blob size:", blob.size, "type:", cleanMime);
+
+      if (blob.size === 0) {
+        setError("Recording is empty — please try again.");
+        setCameraState("idle");
+        return;
+      }
+
+      // Spec Step 6 — immediate preview via blob URL (no upload needed yet)
+      const blobUrl = URL.createObjectURL(blob);
+      stopStream();
+      // Step attaches immediately, modal closes, user sees preview right away
+      onConfirmRef.current({ uri: blobUrl, type: "video" });
+
+      // Spec Step 7 — background upload: swap blob URL with durable server URL
+      setUploading(true);
+      try {
+        const serverUrl = await uploadBlob(blob, "capture.webm");
+        console.log("[CameraModal] Uploaded to:", serverUrl);
+        onReplaceRef.current?.(blobUrl, serverUrl);
+        URL.revokeObjectURL(blobUrl); // free memory
+      } catch (e) {
+        console.error("[CameraModal] Background upload failed:", e);
+        // Preview still works with blob URL for the current session
+      }
+      setUploading(false);
+    };
+
+    recorder.stop(); // triggers onstop above
+    setCameraState("idle");
+  };
+
+  // Photo capture: same immediate-preview + background-upload pattern
+  const capturePhoto = () => {
     if (cameraState !== "idle") return;
     const el = videoRef.current;
     if (!el) return;
@@ -161,48 +208,24 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     canvas.height = el.videoHeight || 720;
     canvas.getContext("2d")?.drawImage(el, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(
-      (blob) => {
-        if (blob && processAndAttachRef.current) {
-          processAndAttachRef.current(blob, "image");
+      async (blob) => {
+        if (!blob) return;
+        console.log("[CameraModal] Photo blob size:", blob.size);
+        const blobUrl = URL.createObjectURL(blob);
+        stopStream();
+        onConfirmRef.current({ uri: blobUrl, type: "image" });
+
+        try {
+          const serverUrl = await uploadBlob(blob, "capture.jpg");
+          onReplaceRef.current?.(blobUrl, serverUrl);
+          URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+          console.error("[CameraModal] Photo upload failed:", e);
         }
       },
       "image/jpeg",
       0.85,
     );
-  };
-
-  const startRecording = () => {
-    if (!streamRef.current || cameraState !== "idle") return;
-    const mimeType = pickMimeType();
-    const recorder = new MediaRecorder(streamRef.current, {
-      mimeType,
-      videoBitsPerSecond: 1_500_000,
-    });
-    chunksRef.current = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-    recorder.onstop = async () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      const cleanMime = mimeType.split(";")[0]; // "video/webm"
-      const blob = new Blob(chunksRef.current, { type: cleanMime });
-      // Always calls latest processAndAttach via ref — no stale closure
-      if (processAndAttachRef.current) {
-        await processAndAttachRef.current(blob, "video");
-      }
-    };
-    recorder.start(100);
-    recorderRef.current = recorder;
-    setCameraState("recording");
-    setRecordingDuration(0);
-    timerRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000);
-  };
-
-  const stopRecording = () => {
-    if (recorderRef.current && cameraState === "recording") {
-      if (timerRef.current) clearInterval(timerRef.current);
-      recorderRef.current.stop();
-    }
   };
 
   const flipCamera = async () => {
@@ -219,7 +242,7 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
   return (
     <Modal visible animationType="slide" statusBarTranslucent>
       <View style={styles.container}>
-        {/* Live camera viewfinder */}
+        {/* Spec Step 1 — live camera preview using React ref (not getElementById) */}
         {React.createElement("video", {
           ref: videoRef,
           autoPlay: true,
@@ -236,44 +259,6 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
             transform: facing === "user" ? "scaleX(-1)" : "none",
           },
         })}
-
-        {/* Processing overlay */}
-        {cameraState === "processing" && (
-          <View style={styles.processingOverlay}>
-            <View style={styles.processingCard}>
-              <ActivityIndicator color="#fff" size="large" />
-              <Text style={styles.processingLabel}>
-                {processingPhase === "uploading" ? "Uploading…" : "Attaching to step…"}
-              </Text>
-              <View style={styles.phaseRow}>
-                {(["uploading", "attaching"] as ProcessingPhase[]).map((p) => (
-                  <View key={p} style={styles.phaseItem}>
-                    <Ionicons
-                      name={
-                        processingPhase === p
-                          ? "radio-button-on"
-                          : p === "uploading" && processingPhase === "attaching"
-                          ? "checkmark-circle"
-                          : "ellipse-outline"
-                      }
-                      size={14}
-                      color={
-                        processingPhase === p
-                          ? "#fff"
-                          : p === "uploading" && processingPhase === "attaching"
-                          ? "#4CD964"
-                          : "rgba(255,255,255,0.4)"
-                      }
-                    />
-                    <Text style={styles.phaseLabel}>
-                      {p === "uploading" ? "Uploading" : "Attaching"}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Error banner */}
         {error && (
@@ -297,53 +282,55 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
         )}
 
         {/* Top bar */}
-        {cameraState !== "processing" && (
-          <View style={styles.topBar}>
-            <TouchableOpacity style={styles.topBtn} onPress={handleClose}>
-              <Ionicons name="close" size={26} color="#fff" />
-            </TouchableOpacity>
+        <View style={styles.topBar}>
+          <TouchableOpacity style={styles.topBtn} onPress={handleClose}>
+            <Ionicons name="close" size={26} color="#fff" />
+          </TouchableOpacity>
 
-            {cameraState === "recording" ? (
-              <View style={styles.recDot}>
-                <View style={styles.recDotCircle} />
-                <Text style={styles.recTimer}>{fmt(recordingDuration)}</Text>
-              </View>
-            ) : (
-              <View style={styles.modeToggle}>
-                <TouchableOpacity
-                  style={[styles.modeBtn, mode === "photo" && styles.modeBtnActive]}
-                  onPress={() => setMode("photo")}
-                >
-                  <Text style={[styles.modeBtnText, mode === "photo" && styles.modeBtnTextActive]}>
-                    Photo
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modeBtn, mode === "video" && styles.modeBtnActive]}
-                  onPress={() => setMode("video")}
-                >
-                  <Text style={[styles.modeBtnText, mode === "video" && styles.modeBtnTextActive]}>
-                    Video
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+          {cameraState === "recording" ? (
+            <View style={styles.recDot}>
+              <View style={styles.recDotCircle} />
+              <Text style={styles.recTimer}>{fmt(recordingDuration)}</Text>
+            </View>
+          ) : (
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeBtn, mode === "photo" && styles.modeBtnActive]}
+                onPress={() => setMode("photo")}
+              >
+                <Text style={[styles.modeBtnText, mode === "photo" && styles.modeBtnTextActive]}>
+                  Photo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeBtn, mode === "video" && styles.modeBtnActive]}
+                onPress={() => setMode("video")}
+              >
+                <Text style={[styles.modeBtnText, mode === "video" && styles.modeBtnTextActive]}>
+                  Video
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-            <TouchableOpacity
-              style={styles.topBtn}
-              onPress={flipCamera}
-              disabled={cameraState === "recording"}
-            >
-              <Ionicons name="camera-reverse-outline" size={26} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
+          <TouchableOpacity
+            style={styles.topBtn}
+            onPress={flipCamera}
+            disabled={cameraState === "recording"}
+          >
+            <Ionicons name="camera-reverse-outline" size={26} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-        {/* Bottom shutter/record controls */}
-        {cameraState !== "processing" && !permissionDenied && (
+        {/* Bottom controls */}
+        {!permissionDenied && (
           <View style={styles.bottomBar}>
             {mode === "photo" ? (
-              <TouchableOpacity style={styles.shutterBtn} onPress={capturePhoto}>
+              <TouchableOpacity
+                style={styles.shutterBtn}
+                onPress={capturePhoto}
+                disabled={cameraState !== "idle"}
+              >
                 <View style={styles.shutterInner} />
               </TouchableOpacity>
             ) : cameraState === "idle" ? (
@@ -357,6 +344,15 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
             )}
           </View>
         )}
+
+        {/* Background upload indicator (shown after modal would normally close — but this
+            renders briefly; parent step card shows blob URL preview immediately) */}
+        {uploading && (
+          <View style={styles.uploadingBadge}>
+            <ActivityIndicator size="small" color="#fff" />
+            <Text style={styles.uploadingText}>Saving to server…</Text>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -364,24 +360,12 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", position: "relative" },
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.85)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 20,
-  },
-  processingCard: { alignItems: "center", gap: 16, padding: 32 },
-  processingLabel: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  phaseRow: { flexDirection: "row", gap: 20, marginTop: 8 },
-  phaseItem: { alignItems: "center", gap: 4 },
-  phaseLabel: { color: "rgba(255,255,255,0.7)", fontSize: 11 },
   errorBanner: {
     position: "absolute",
     top: 100,
     left: 20,
     right: 20,
-    backgroundColor: "rgba(200,50,50,0.9)",
+    backgroundColor: "rgba(200,50,50,0.92)",
     borderRadius: 12,
     padding: 14,
     zIndex: 15,
@@ -394,6 +378,7 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 40,
     zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.85)",
   },
   permissionTitle: { color: "#fff", fontSize: 22, fontWeight: "700", textAlign: "center" },
   permissionSub: {
@@ -493,4 +478,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stopBtnInner: { width: 30, height: 30, borderRadius: 4, backgroundColor: "#FF3B30" },
+  uploadingBadge: {
+    position: "absolute",
+    bottom: 160,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  uploadingText: { color: "#fff", fontSize: 13 },
 });

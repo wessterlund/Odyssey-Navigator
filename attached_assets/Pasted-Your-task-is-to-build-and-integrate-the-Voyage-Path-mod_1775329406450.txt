@@ -1,0 +1,206 @@
+Your task is to build and integrate the “Voyage Path” module based on the provided design.
+
+🧠 CORE CONCEPT
+
+A Voyage Path is a structured intervention plan for a student.
+
+It consists of:
+
+Explorer’s Mission (Goal)
+Adventures (Tasks / Steps)
+Rewards (Motivation system)
+Schedule & Settings
+Execution + Logging
+📱 MODULE STRUCTURE
+1. ENTRY POINT (Student Profile)
+
+Add button:
+
+“View Voyage Path” (if exists)
+“Create Voyage Path” (if none exists)
+🚀 2. CREATE FLOW (MULTI-STEP WIZARD)
+STEP 1 — Explorer’s Mission
+
+Inputs:
+
+Mission title (text)
+Description (multi-line)
+Suggested prompts (helper text)
+
+CTA:
+
+Next
+STEP 2 — Adventures (Task Analysis Builder)
+
+User can:
+
+Add multiple Adventures
+Each adventure includes:
+Title
+Optional instructions
+Media:
+Video upload OR record
+Image upload
+Tags (optional)
+
+UI:
+
+“Add new adventure” button
+List of created adventures
+STEP 3 — Rewards
+
+User can:
+
+Add multiple rewards
+Each reward includes:
+Name
+Type (e.g., break, toy, activity)
+Criteria (e.g., after X completions)
+
+UI:
+
+“Add new reward”
+Rewards list
+STEP 4 — Scheduling & Settings
+
+Fields:
+
+Start date
+End date
+Frequency (daily, weekly)
+Visibility:
+Public / Private
+Comments toggle
+STEP 5 — Review & Save
+Summary of:
+Mission
+Adventures
+Rewards
+Schedule
+
+Buttons:
+
+Save Draft
+Publish (activate path)
+🧭 3. VOYAGE PATH VIEW (MAIN SCREEN)
+
+Displays:
+
+Header
+Student name
+Voyage Path title
+Visual banner (optional illustration)
+Sections
+Explorer’s Mission
+Title + description
+Treasure Islands (Adventures List)
+
+Each item:
+
+Adventure name
+Status indicator
+Click → open adventure
+Rewards
+List of rewards
+Progress toward reward
+Actions
+Edit
+Complete Voyage Path
+🎥 4. ADVENTURE EXECUTION MODE
+
+When user opens an adventure:
+
+Show:
+
+Title
+Instructions
+Media (video/image)
+VIDEO FUNCTION (CRITICAL — MUST WORK)
+
+Implement:
+
+Button: Start Recording
+Button: Stop Recording
+
+Flow:
+
+Open camera
+Record video
+On stop:
+Automatically compress video
+Attach video to this adventure instance
+Save to backend/storage
+
+Requirements:
+
+Use browser MediaRecorder API
+Compress video before upload
+Store reference in database
+📝 5. LOGGING SYSTEM
+
+Each adventure interaction logs:
+
+Timestamp
+Completion status
+Attached media (video/image)
+
+User can:
+
+View logs
+Add comments
+🧱 DATA MODEL (IMPORTANT)
+
+Create structured schema:
+
+VoyagePath
+id
+studentId
+mission
+adventures[]
+rewards[]
+schedule
+status (draft | active | completed)
+Adventure
+id
+title
+instructions
+media[]
+logs[]
+Reward
+id
+name
+type
+criteria
+Log
+id
+adventureId
+timestamp
+mediaUrl
+notes
+🔗 INTEGRATION REQUIREMENTS
+Must connect to existing student profile
+Must reuse existing UI components
+Must follow current navigation system
+Must persist data to backend
+Must support edit/update flows
+🎯 UX REQUIREMENTS
+Mobile-first layout
+Large buttons (accessible for non-tech users)
+Minimal cognitive load
+Clear progression (step indicator 1–5)
+Autosave draft
+⚠️ CRITICAL IMPLEMENTATION RULES
+DO NOT create isolated pages — integrate into existing app
+DO NOT mock data — connect to real backend
+VIDEO RECORDING MUST:
+Actually record
+Compress
+Save
+Handle empty states (no adventures, no rewards)
+Ensure performance (optimize media uploads)
+✅ OUTPUT EXPECTATION
+Fully functional Voyage Path module
+Connected to student profiles
+Working creation flow
+Working execution mode
+Working video recording + compression + attachment

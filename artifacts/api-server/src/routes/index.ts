@@ -6,6 +6,7 @@ import walletRouter from "./odyssey/wallet";
 import rewardsRouter from "./odyssey/rewards";
 import aiRouter from "./odyssey/ai";
 import uploadRouter from "./odyssey/upload";
+import voyagePathsRouter from "./odyssey/voyage-paths";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/wallet", walletRouter);
 router.use("/rewards", rewardsRouter);
 router.use("/ai", aiRouter);
 router.use("/upload", uploadRouter);
+router.use("/voyage-paths", voyagePathsRouter);
 
 export default router;

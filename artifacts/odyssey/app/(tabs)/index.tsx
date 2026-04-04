@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,27 +12,47 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
-import { useApp } from "@/contexts/AppContext";
+import { useApp, apiBase } from "@/contexts/AppContext";
 import { CoinBadge } from "@/components/CoinBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 import * as Haptics from "expo-haptics";
+
+interface VoyagePath {
+  id: number;
+  title: string;
+  status: "draft" | "active" | "completed";
+  adventureIds: number[];
+}
 
 export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { currentLearner, learners, adventures, wallet, rewards, loading, refreshAll, loadLearners, setCurrentLearner } = useApp();
+  const [voyagePaths, setVoyagePaths] = useState<VoyagePath[]>([]);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const loadVoyagePaths = useCallback(async (learnerId: number) => {
+    try {
+      const res = await fetch(`${apiBase()}/voyage-paths/learner/${learnerId}`);
+      if (res.ok) setVoyagePaths(await res.json());
+    } catch {}
+  }, []);
 
   useEffect(() => {
     loadLearners();
   }, []);
 
+  useEffect(() => {
+    if (currentLearner) loadVoyagePaths(currentLearner.id);
+    else setVoyagePaths([]);
+  }, [currentLearner, loadVoyagePaths]);
+
   const onRefresh = async () => {
     if (currentLearner) {
-      await refreshAll(currentLearner.id);
+      await Promise.all([refreshAll(currentLearner.id), loadVoyagePaths(currentLearner.id)]);
     } else {
       await loadLearners();
     }
@@ -145,6 +165,49 @@ export default function HomeScreen() {
           <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Unlocked</Text>
         </View>
       </View>
+
+      {/* Voyage Path Card */}
+      {(() => {
+        const activePath = voyagePaths.find((vp) => vp.status === "active") ?? voyagePaths[0];
+        return activePath ? (
+          <TouchableOpacity
+            style={[styles.voyageCard, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push(`/voyage/${activePath.id}`);
+            }}
+          >
+            <View style={styles.voyageCardLeft}>
+              <Text style={styles.voyageCardLabel}>Voyage Path</Text>
+              <Text style={styles.voyageCardTitle} numberOfLines={1}>{activePath.title}</Text>
+              <View style={styles.voyageCardStatus}>
+                <View style={[styles.voyageStatusDot, { backgroundColor: activePath.status === "active" ? "#34D399" : "rgba(255,255,255,0.5)" }]} />
+                <Text style={[styles.voyageStatusText, { textTransform: "capitalize" }]}>
+                  {activePath.status} · {activePath.adventureIds?.length ?? 0} adventures
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.8)" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.voyageCard, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/voyage/create");
+            }}
+          >
+            <View style={styles.voyageCardLeft}>
+              <Text style={[styles.voyageCardLabel, { color: colors.mutedForeground }]}>Voyage Path</Text>
+              <Text style={[styles.voyageCardTitle, { color: colors.foreground }]}>Create Voyage Path</Text>
+              <Text style={[styles.voyageStatusText, { color: colors.mutedForeground }]}>
+                Build a structured intervention plan
+              </Text>
+            </View>
+            <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
+          </TouchableOpacity>
+        );
+      })()}
 
       {/* Recent Adventures */}
       <View style={styles.section}>
@@ -359,6 +422,24 @@ const styles = StyleSheet.create({
   },
   rewardName: { fontSize: 13, fontWeight: "600" },
   rewardCost: { fontSize: 11 },
+  voyageCard: {
+    borderRadius: 18,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  voyageCardLeft: { flex: 1, gap: 4 },
+  voyageCardLabel: { fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: 0.5 },
+  voyageCardTitle: { fontSize: 19, fontWeight: "800", color: "#fff" },
+  voyageCardStatus: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  voyageStatusDot: { width: 7, height: 7, borderRadius: 4 },
+  voyageStatusText: { fontSize: 13, color: "rgba(255,255,255,0.8)" },
   quickActions: { gap: 10 },
   quickBtn: {
     flexDirection: "row",

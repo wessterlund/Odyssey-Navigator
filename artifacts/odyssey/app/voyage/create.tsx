@@ -1,0 +1,740 @@
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Switch,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useColors } from "@/hooks/useColors";
+import { useApp, Adventure, Reward } from "@/contexts/AppContext";
+import { apiBase } from "@/contexts/AppContext";
+import * as Haptics from "expo-haptics";
+
+const TOTAL_STEPS = 5;
+
+interface WizardState {
+  title: string;
+  description: string;
+  adventureIds: number[];
+  rewardIds: number[];
+  startDate: string;
+  endDate: string;
+  frequency: "daily" | "weekly";
+  visibility: "public" | "private";
+  commentsEnabled: boolean;
+}
+
+const defaultState: WizardState = {
+  title: "",
+  description: "",
+  adventureIds: [],
+  rewardIds: [],
+  startDate: "",
+  endDate: "",
+  frequency: "daily",
+  visibility: "private",
+  commentsEnabled: true,
+};
+
+export default function VoyagePathCreateScreen() {
+  const colors = useColors();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { currentLearner, adventures, rewards, refreshAll } = useApp();
+  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const [step, setStep] = useState(1);
+  const [state, setState] = useState<WizardState>(defaultState);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const update = (partial: Partial<WizardState>) =>
+    setState((prev) => ({ ...prev, ...partial }));
+
+  const toggleAdventure = (id: number) => {
+    setState((prev) => ({
+      ...prev,
+      adventureIds: prev.adventureIds.includes(id)
+        ? prev.adventureIds.filter((x) => x !== id)
+        : [...prev.adventureIds, id],
+    }));
+  };
+
+  const toggleReward = (id: number) => {
+    setState((prev) => ({
+      ...prev,
+      rewardIds: prev.rewardIds.includes(id)
+        ? prev.rewardIds.filter((x) => x !== id)
+        : [...prev.rewardIds, id],
+    }));
+  };
+
+  const canNext = () => {
+    if (step === 1) return state.title.trim().length > 0;
+    return true;
+  };
+
+  const save = async (status: "draft" | "active") => {
+    if (!currentLearner) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`${apiBase()}/voyage-paths`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          learnerId: currentLearner.id,
+          title: state.title,
+          description: state.description || null,
+          adventureIds: state.adventureIds,
+          rewardIds: state.rewardIds,
+          startDate: state.startDate || null,
+          endDate: state.endDate || null,
+          frequency: state.frequency,
+          visibility: state.visibility,
+          commentsEnabled: state.commentsEnabled,
+          status,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save voyage path");
+      const vp = await res.json();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace(`/voyage/${vp.id}`);
+    } catch (e: any) {
+      setError(e.message ?? "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return <Step1Mission state={state} update={update} colors={colors} />;
+      case 2:
+        return (
+          <Step2Adventures
+            state={state}
+            adventures={adventures}
+            toggleAdventure={toggleAdventure}
+            colors={colors}
+            onCreateNew={() => router.push("/adventure/create")}
+          />
+        );
+      case 3:
+        return (
+          <Step3Rewards
+            state={state}
+            rewards={rewards}
+            toggleReward={toggleReward}
+            colors={colors}
+            onCreateNew={() => router.push("/reward/create")}
+          />
+        );
+      case 4:
+        return <Step4Schedule state={state} update={update} colors={colors} />;
+      case 5:
+        return (
+          <Step5Review
+            state={state}
+            adventures={adventures}
+            rewards={rewards}
+            colors={colors}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: topInset + 8 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => (step > 1 ? setStep(step - 1) : router.back())}>
+          <Ionicons name="chevron-back" size={24} color={colors.foreground} />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+            {step === 1 ? "Explorer's Mission" :
+             step === 2 ? "Treasure Islands" :
+             step === 3 ? "Rewards" :
+             step === 4 ? "Schedule" :
+             "Review & Save"}
+          </Text>
+          <Text style={[styles.headerSub, { color: colors.mutedForeground }]}>
+            Step {step} of {TOTAL_STEPS}
+          </Text>
+        </View>
+        <View style={{ width: 44 }} />
+      </View>
+
+      {/* Progress bar */}
+      <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+        <View
+          style={[
+            styles.progressFill,
+            { backgroundColor: colors.primary, width: `${(step / TOTAL_STEPS) * 100}%` },
+          ]}
+        />
+      </View>
+
+      {/* Content */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 120 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {error && (
+          <View style={[styles.errorBanner, { backgroundColor: "#FEF2F2" }]}>
+            <Text style={[styles.errorText, { color: "#DC2626" }]}>{error}</Text>
+          </View>
+        )}
+        {renderStep()}
+      </ScrollView>
+
+      {/* Bottom nav */}
+      <View
+        style={[
+          styles.bottomNav,
+          {
+            backgroundColor: colors.background,
+            paddingBottom: bottomInset + 16,
+            borderTopColor: colors.border,
+          },
+        ]}
+      >
+        {step < TOTAL_STEPS ? (
+          <TouchableOpacity
+            style={[
+              styles.nextBtn,
+              { backgroundColor: canNext() ? colors.primary : colors.border },
+            ]}
+            disabled={!canNext() || saving}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setStep(step + 1);
+            }}
+          >
+            <Text style={[styles.nextBtnText, { color: canNext() ? colors.primaryForeground : colors.mutedForeground }]}>
+              Next
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={canNext() ? colors.primaryForeground : colors.mutedForeground} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.finalBtns}>
+            <TouchableOpacity
+              style={[styles.draftBtn, { borderColor: colors.border }]}
+              disabled={saving}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                save("draft");
+              }}
+            >
+              {saving ? <ActivityIndicator size="small" color={colors.mutedForeground} /> :
+                <Text style={[styles.draftBtnText, { color: colors.foreground }]}>Save Draft</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.publishBtn, { backgroundColor: colors.primary }]}
+              disabled={saving}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                save("active");
+              }}
+            >
+              {saving ? <ActivityIndicator size="small" color={colors.primaryForeground} /> :
+                <Text style={[styles.publishBtnText, { color: colors.primaryForeground }]}>Publish</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 1: Mission ──────────────────────────────────────────────────────────
+function Step1Mission({ state, update, colors }: any) {
+  const prompts = [
+    "Help the learner practice daily self-care routines independently.",
+    "Build communication skills through structured social activities.",
+    "Develop emotional regulation strategies through guided play.",
+    "Improve focus and attention during structured learning sessions.",
+  ];
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>Mission Title *</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+        placeholder="Give this voyage path a clear mission title…"
+        placeholderTextColor={colors.mutedForeground}
+        value={state.title}
+        onChangeText={(t) => update({ title: t })}
+        maxLength={100}
+      />
+
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Description</Text>
+      <TextInput
+        style={[styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+        placeholder="Describe the goal of this voyage path in detail…"
+        placeholderTextColor={colors.mutedForeground}
+        value={state.description}
+        onChangeText={(t) => update({ description: t })}
+        multiline
+        numberOfLines={4}
+      />
+
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground, marginTop: 20 }]}>Suggested Prompts</Text>
+      {prompts.map((prompt, i) => (
+        <TouchableOpacity
+          key={i}
+          style={[styles.promptChip, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => update({ description: prompt })}
+        >
+          <Ionicons name="bulb-outline" size={16} color={colors.primary} />
+          <Text style={[styles.promptText, { color: colors.foreground }]} numberOfLines={2}>{prompt}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+// ─── Step 2: Adventures ───────────────────────────────────────────────────────
+function Step2Adventures({ state, adventures, toggleAdventure, colors, onCreateNew }: any) {
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
+        Select existing adventures to include in this voyage path, or create new ones.
+      </Text>
+
+      {adventures.length === 0 ? (
+        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="map-outline" size={36} color={colors.mutedForeground} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No adventures yet</Text>
+        </View>
+      ) : (
+        adventures.map((adv: Adventure) => {
+          const selected = state.adventureIds.includes(adv.id);
+          return (
+            <TouchableOpacity
+              key={adv.id}
+              style={[
+                styles.selectCard,
+                {
+                  backgroundColor: selected ? `${colors.primary}18` : colors.card,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                toggleAdventure(adv.id);
+              }}
+            >
+              <View style={[styles.selectCheck, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : "transparent" }]}>
+                {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <View style={styles.selectCardContent}>
+                <Text style={[styles.selectCardTitle, { color: colors.foreground }]}>{adv.title}</Text>
+                {adv.description && (
+                  <Text style={[styles.selectCardSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                    {adv.description}
+                  </Text>
+                )}
+                <Text style={[styles.selectCardMeta, { color: colors.mutedForeground }]}>
+                  {adv.steps?.length ?? 0} steps
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })
+      )}
+
+      <TouchableOpacity
+        style={[styles.addNewBtn, { borderColor: colors.primary }]}
+        onPress={onCreateNew}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+        <Text style={[styles.addNewBtnText, { color: colors.primary }]}>Add new adventure</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Step 3: Rewards ─────────────────────────────────────────────────────────
+function Step3Rewards({ state, rewards, toggleReward, colors, onCreateNew }: any) {
+  const published = rewards.filter((r: Reward) => !r.isDraft);
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
+        Select rewards that will motivate the learner to complete this voyage path.
+      </Text>
+
+      {published.length === 0 ? (
+        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="gift-outline" size={36} color={colors.mutedForeground} />
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No rewards yet</Text>
+        </View>
+      ) : (
+        published.map((r: Reward) => {
+          const selected = state.rewardIds.includes(r.id);
+          return (
+            <TouchableOpacity
+              key={r.id}
+              style={[
+                styles.selectCard,
+                {
+                  backgroundColor: selected ? `${colors.primary}18` : colors.card,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                toggleReward(r.id);
+              }}
+            >
+              <View style={[styles.selectCheck, { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : "transparent" }]}>
+                {selected && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <View style={styles.selectCardContent}>
+                <Text style={[styles.selectCardTitle, { color: colors.foreground }]}>{r.name}</Text>
+                {r.description && (
+                  <Text style={[styles.selectCardSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                    {r.description}
+                  </Text>
+                )}
+                <Text style={[styles.selectCardMeta, { color: colors.coin }]}>{r.cost} coins</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })
+      )}
+
+      <TouchableOpacity
+        style={[styles.addNewBtn, { borderColor: colors.primary }]}
+        onPress={onCreateNew}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+        <Text style={[styles.addNewBtnText, { color: colors.primary }]}>Add new reward</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Step 4: Schedule ─────────────────────────────────────────────────────────
+function Step4Schedule({ state, update, colors }: any) {
+  return (
+    <View style={styles.stepContent}>
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>Start Date</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={colors.mutedForeground}
+        value={state.startDate}
+        onChangeText={(t) => update({ startDate: t })}
+      />
+
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground, marginTop: 16 }]}>End Date</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={colors.mutedForeground}
+        value={state.endDate}
+        onChangeText={(t) => update({ endDate: t })}
+      />
+
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Frequency</Text>
+      <View style={styles.segmentRow}>
+        {(["daily", "weekly"] as const).map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[
+              styles.segmentBtn,
+              {
+                backgroundColor: state.frequency === f ? colors.primary : colors.card,
+                borderColor: state.frequency === f ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={() => update({ frequency: f })}
+          >
+            <Text style={{ color: state.frequency === f ? colors.primaryForeground : colors.foreground, fontWeight: "600", textTransform: "capitalize" }}>
+              {f}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={[styles.stepLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Visibility</Text>
+      <View style={styles.segmentRow}>
+        {(["private", "public"] as const).map((v) => (
+          <TouchableOpacity
+            key={v}
+            style={[
+              styles.segmentBtn,
+              {
+                backgroundColor: state.visibility === v ? colors.primary : colors.card,
+                borderColor: state.visibility === v ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={() => update({ visibility: v })}
+          >
+            <Ionicons
+              name={v === "private" ? "lock-closed-outline" : "globe-outline"}
+              size={14}
+              color={state.visibility === v ? colors.primaryForeground : colors.foreground}
+            />
+            <Text style={{ color: state.visibility === v ? colors.primaryForeground : colors.foreground, fontWeight: "600", textTransform: "capitalize" }}>
+              {v}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={[styles.toggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.toggleLeft}>
+          <Ionicons name="chatbubble-outline" size={20} color={colors.mutedForeground} />
+          <View>
+            <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Enable Comments</Text>
+            <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>
+              Allow notes and comments on adventures
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={state.commentsEnabled}
+          onValueChange={(v) => update({ commentsEnabled: v })}
+          trackColor={{ true: colors.primary }}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 5: Review ───────────────────────────────────────────────────────────
+function Step5Review({ state, adventures, rewards, colors }: any) {
+  const selectedAdventures = adventures.filter((a: Adventure) => state.adventureIds.includes(a.id));
+  const selectedRewards = rewards.filter((r: Reward) => state.rewardIds.includes(r.id));
+  return (
+    <View style={styles.stepContent}>
+      <View style={[styles.reviewSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.reviewSectionTitle, { color: colors.mutedForeground }]}>Explorer's Mission</Text>
+        <Text style={[styles.reviewTitle, { color: colors.foreground }]}>{state.title || "—"}</Text>
+        {state.description ? (
+          <Text style={[styles.reviewDesc, { color: colors.mutedForeground }]}>{state.description}</Text>
+        ) : null}
+      </View>
+
+      <View style={[styles.reviewSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.reviewSectionTitle, { color: colors.mutedForeground }]}>
+          Adventures ({selectedAdventures.length})
+        </Text>
+        {selectedAdventures.length === 0 ? (
+          <Text style={[styles.reviewEmpty, { color: colors.mutedForeground }]}>None selected</Text>
+        ) : (
+          selectedAdventures.map((a: Adventure) => (
+            <View key={a.id} style={styles.reviewItem}>
+              <Ionicons name="map" size={16} color={colors.primary} />
+              <Text style={[styles.reviewItemText, { color: colors.foreground }]}>{a.title}</Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={[styles.reviewSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.reviewSectionTitle, { color: colors.mutedForeground }]}>
+          Rewards ({selectedRewards.length})
+        </Text>
+        {selectedRewards.length === 0 ? (
+          <Text style={[styles.reviewEmpty, { color: colors.mutedForeground }]}>None selected</Text>
+        ) : (
+          selectedRewards.map((r: Reward) => (
+            <View key={r.id} style={styles.reviewItem}>
+              <Ionicons name="gift" size={16} color={colors.coin} />
+              <Text style={[styles.reviewItemText, { color: colors.foreground }]}>{r.name}</Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={[styles.reviewSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.reviewSectionTitle, { color: colors.mutedForeground }]}>Schedule</Text>
+        <View style={styles.reviewItem}>
+          <Ionicons name="calendar-outline" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.reviewItemText, { color: colors.foreground }]}>
+            {state.startDate || "No start date"} → {state.endDate || "No end date"}
+          </Text>
+        </View>
+        <View style={styles.reviewItem}>
+          <Ionicons name="refresh-outline" size={16} color={colors.mutedForeground} />
+          <Text style={[styles.reviewItemText, { color: colors.foreground }]} style={{ textTransform: "capitalize" }}>
+            {state.frequency}
+          </Text>
+        </View>
+        <View style={styles.reviewItem}>
+          <Ionicons name={state.visibility === "private" ? "lock-closed-outline" : "globe-outline"} size={16} color={colors.mutedForeground} />
+          <Text style={[styles.reviewItemText, { color: colors.foreground }]} style={{ textTransform: "capitalize" }}>
+            {state.visibility}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  backBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  headerCenter: { flex: 1, alignItems: "center" },
+  headerTitle: { fontSize: 17, fontWeight: "700" },
+  headerSub: { fontSize: 12 },
+  progressTrack: { height: 3, marginHorizontal: 0 },
+  progressFill: { height: 3 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 20, gap: 0 },
+  errorBanner: { borderRadius: 12, padding: 14, marginBottom: 16 },
+  errorText: { fontSize: 14, fontWeight: "500" },
+  bottomNav: { paddingTop: 12, paddingHorizontal: 20, borderTopWidth: 1 },
+  nextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
+  nextBtnText: { fontSize: 17, fontWeight: "700" },
+  finalBtns: { flexDirection: "row", gap: 12 },
+  draftBtn: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  draftBtnText: { fontSize: 16, fontWeight: "700" },
+  publishBtn: {
+    flex: 2,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  publishBtnText: { fontSize: 16, fontWeight: "700" },
+  stepContent: { gap: 8 },
+  stepLabel: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
+  stepDesc: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
+  input: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  textArea: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  promptChip: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 6,
+  },
+  promptText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  selectCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    marginTop: 8,
+  },
+  selectCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectCardContent: { flex: 1, gap: 2 },
+  selectCardTitle: { fontSize: 15, fontWeight: "700" },
+  selectCardSub: { fontSize: 13 },
+  selectCardMeta: { fontSize: 12, marginTop: 2 },
+  addNewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    paddingVertical: 14,
+    marginTop: 12,
+  },
+  addNewBtnText: { fontSize: 15, fontWeight: "700" },
+  segmentRow: { flexDirection: "row", gap: 10 },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginTop: 16,
+  },
+  toggleLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  toggleLabel: { fontSize: 15, fontWeight: "600" },
+  toggleSub: { fontSize: 12, marginTop: 2 },
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    padding: 32,
+    gap: 10,
+  },
+  emptyText: { fontSize: 14 },
+  reviewSection: { borderRadius: 16, padding: 16, marginBottom: 12, gap: 8 },
+  reviewSectionTitle: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  reviewTitle: { fontSize: 20, fontWeight: "700" },
+  reviewDesc: { fontSize: 14, lineHeight: 20 },
+  reviewEmpty: { fontSize: 14 },
+  reviewItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+  reviewItemText: { fontSize: 14, flex: 1 },
+});

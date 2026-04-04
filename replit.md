@@ -40,6 +40,7 @@ pnpm workspace monorepo using TypeScript. This is the **Odyssey** project — an
 - **Wallet**: Coin tracking with transaction history
 - **Rewards**: AI-suggested personalized rewards, progress tracking, redeeming
 - **Adaptive Learning**: Performance tracking after each adventure
+- **Voyage Path**: Structured intervention plan — multi-step wizard to create a plan linking adventures + rewards with scheduling, launch/execution with evidence logging (video), and full status lifecycle (draft → active → completed)
 
 ## Database Tables
 
@@ -50,6 +51,8 @@ pnpm workspace monorepo using TypeScript. This is the **Odyssey** project — an
 - `rewards` — available rewards
 - `transactions` — earn/redeem history
 - `performance_tracking` — step completion data for AI adaptation
+- `voyage_paths` — structured intervention plans (mission, adventure IDs, reward IDs, schedule, status)
+- `voyage_logs` — execution logs per adventure (completion status, media evidence, notes)
 
 ## API Routes
 
@@ -64,5 +67,16 @@ pnpm workspace monorepo using TypeScript. This is the **Odyssey** project — an
 - `POST /api/ai/copilot-tip` — real-time support tip during child mode
 - `POST /api/ai/adaptive-suggestions` — post-adventure improvement suggestions
 - `POST /api/ai/performance` — track step performance data
+- `GET /api/voyage-paths/learner/:learnerId` — list voyage paths for a learner
+- `GET/PUT/DELETE /api/voyage-paths/:id` — manage a voyage path (includes adventures, rewards, logs)
+- `PUT /api/voyage-paths/:id/status` — change status (draft/active/completed)
+- `GET/POST /api/voyage-paths/:id/logs` — manage execution logs
+- `GET /api/voyage-paths/:id/logs/adventure/:adventureId` — logs for specific adventure
+
+## Voyage Path Screens
+
+- `app/voyage/create.tsx` — 5-step creation wizard (mission → adventures → rewards → schedule → review)
+- `app/voyage/[id].tsx` — main voyage path view (mission, treasure islands, rewards, logs, status actions)
+- `app/voyage/execute/[adventureId].tsx` — execution mode with video evidence recording and log creation
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

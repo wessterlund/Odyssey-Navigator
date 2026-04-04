@@ -138,7 +138,7 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
             style={styles.heroBtn}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/(tabs)/students");
+              router.push("/teacher-hub");
             }}
           >
             <Text style={styles.heroBtnText}>Teacher's Hub</Text>

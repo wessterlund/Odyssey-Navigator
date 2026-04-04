@@ -22,7 +22,7 @@ type Props = {
   onReplace?: (oldUri: string, newUri: string) => void;
 };
 
-type CameraState = "idle" | "recording" | "uploading";
+type CameraState = "idle" | "recording" | "stopping" | "uploading";
 
 async function uploadBlob(blob: Blob, filename: string): Promise<string> {
   const formData = new FormData();
@@ -153,19 +153,22 @@ export function CameraModal({ visible, onClose, onConfirm, onReplace }: Props) {
     timerRef.current = setInterval(() => setRecordingDuration((d) => d + 1), 1000);
   };
 
-  // Spec Step 3 — stopRecording: set onstop THEN call stop()
-  // Spec Step 6-8: immediate blob URL preview → background server upload → URL swap
+  // stopRecording: set onstop THEN call stop()
+  // Pattern: immediate blob URL preview → background server upload → URL swap
   const stopRecording = () => {
     const recorder = recorderRef.current;
     if (!recorder || cameraState !== "recording") return;
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // CRITICAL: set onstop before stop() per spec
+    // "stopping" prevents UI from flashing back to start-recording state
+    // before onstop fires and the modal closes
+    setCameraState("stopping");
+
+    // CRITICAL: set onstop before stop() so we never miss the event
     recorder.onstop = async () => {
       const cleanMime = (recorder.mimeType || "video/webm").split(";")[0];
       const blob = new Blob(chunksRef.current, { type: cleanMime });
 
-      // Spec Step 4 — debug blob size
       console.log("[CameraModal] Recorded blob size:", blob.size, "type:", cleanMime);
 
       if (blob.size === 0) {
@@ -174,28 +177,26 @@ export function CameraModal({ visible, onClose, onConfirm, onReplace }: Props) {
         return;
       }
 
-      // Spec Step 6 — immediate preview via blob URL (no upload needed yet)
+      // Immediate preview via blob URL — step attaches and modal closes right away
       const blobUrl = URL.createObjectURL(blob);
       stopStream();
-      // Step attaches immediately, modal closes, user sees preview right away
       onConfirmRef.current({ uri: blobUrl, type: "video" });
 
-      // Spec Step 7 — background upload: swap blob URL with durable server URL
+      // Background upload: swap blob URL with durable server URL
       setUploading(true);
       try {
         const serverUrl = await uploadBlob(blob, "capture.webm");
         console.log("[CameraModal] Uploaded to:", serverUrl);
         onReplaceRef.current?.(blobUrl, serverUrl);
-        URL.revokeObjectURL(blobUrl); // free memory
+        URL.revokeObjectURL(blobUrl);
       } catch (e) {
         console.error("[CameraModal] Background upload failed:", e);
-        // Preview still works with blob URL for the current session
+        // Blob URL preview still works for the current browser session
       }
       setUploading(false);
     };
 
     recorder.stop(); // triggers onstop above
-    setCameraState("idle");
   };
 
   // Photo capture: same immediate-preview + background-upload pattern
@@ -287,10 +288,12 @@ export function CameraModal({ visible, onClose, onConfirm, onReplace }: Props) {
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
 
-          {cameraState === "recording" ? (
+          {cameraState === "recording" || cameraState === "stopping" ? (
             <View style={styles.recDot}>
               <View style={styles.recDotCircle} />
-              <Text style={styles.recTimer}>{fmt(recordingDuration)}</Text>
+              <Text style={styles.recTimer}>
+                {cameraState === "stopping" ? "Saving…" : fmt(recordingDuration)}
+              </Text>
             </View>
           ) : (
             <View style={styles.modeToggle}>
@@ -337,10 +340,13 @@ export function CameraModal({ visible, onClose, onConfirm, onReplace }: Props) {
               <TouchableOpacity style={styles.recBtn} onPress={startRecording}>
                 <View style={styles.recBtnInner} />
               </TouchableOpacity>
-            ) : (
+            ) : cameraState === "recording" ? (
               <TouchableOpacity style={styles.stopBtn} onPress={stopRecording}>
                 <View style={styles.stopBtnInner} />
               </TouchableOpacity>
+            ) : (
+              // "stopping" state — waiting for onstop to fire
+              <ActivityIndicator size="large" color="#fff" />
             )}
           </View>
         )}

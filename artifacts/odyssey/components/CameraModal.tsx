@@ -142,7 +142,11 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     if (!cameraRef.current || cameraState !== "idle") return;
 
     if (!micPermission?.granted) {
-      await requestMicPermission();
+      const result = await requestMicPermission();
+      if (!result.granted) {
+        setError("Microphone access is required to record video.");
+        return;
+      }
     }
 
     setCameraState("recording");

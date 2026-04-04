@@ -48,7 +48,8 @@ router.post("/", upload.single("file"), (req, res) => {
 
   const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
   const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost";
-  const fileUrl = `${proto}://${host}/uploads/${req.file.filename}`;
+  // /api/uploads/ ensures the Replit proxy (/api → API server) resolves the file correctly
+  const fileUrl = `${proto}://${host}/api/uploads/${req.file.filename}`;
 
   res.json({
     url: fileUrl,

@@ -31,7 +31,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const uploadsDir = path.join(process.cwd(), "uploads");
-app.use("/uploads", express.static(uploadsDir));
+// Serve under /api/uploads so the Replit proxy (/api → API server) routes it correctly
+app.use("/api/uploads", express.static(uploadsDir));
 app.use("/api", router);
 
 export default app;

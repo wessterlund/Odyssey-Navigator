@@ -152,9 +152,9 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
       {/* ─── Category Grid ──────────────────────────────── */}
       <View style={styles.catGrid}>
         {([
-          { label: "Adventures", icon: ADVENTURE_ICON, route: "/(tabs)/adventures", illBg: "#E4EDFF" },
-          { label: "Rewards",    icon: REWARDS_ICON,   route: "/(tabs)/rewards",    illBg: "#FDEEE6" },
-          { label: "Voyage Path",icon: VOYAGE_ICON,    route: "/voyage/create",     illBg: "#EDE8FF" },
+          { label: "Adventures", icon: ADVENTURE_ICON, route: "/(tabs)/adventures", illBg: "#D1EAFF" },
+          { label: "Rewards",    icon: REWARDS_ICON,   route: "/(tabs)/rewards",    illBg: "#D1EAFF" },
+          { label: "Voyage Path",icon: VOYAGE_ICON,    route: "/voyage/create",     illBg: "#D1EAFF" },
         ] as const).map((tile) => (
           <TouchableOpacity
             key={tile.label}
@@ -191,7 +191,7 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
         </ScrollView>
 
         {filteredTips.map((tip) => (
-          <View key={tip.id} style={[styles.articleCard, { backgroundColor: colors.card }]}>
+          <View key={tip.id} style={[styles.articleCard, { backgroundColor: "#D1EAFF" }]}>
             <View style={[styles.articleBanner, { backgroundColor: tip.color }]}>
               <Text style={styles.articleBannerEmoji}>{tip.emoji}</Text>
             </View>
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   catCard: {
     flex: 1,
     borderRadius: 18,
-    backgroundColor: "#fff",
+    backgroundColor: "#D1EAFF",
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   },
   catCardImg: { width: 90, height: 80 },
   catCardLabel: {
-    backgroundColor: "#fff",
+    backgroundColor: "#D1EAFF",
     paddingVertical: 10,
     paddingHorizontal: 6,
     alignItems: "center",

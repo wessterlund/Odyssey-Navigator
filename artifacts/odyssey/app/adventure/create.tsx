@@ -13,12 +13,12 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase, Step } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { CameraModal, CapturedMedia } from "@/components/CameraModal";
+import { MediaPreview } from "@/components/MediaPreview";
 
 async function uploadToServer(localUri: string, mimeType: string): Promise<string> {
   const formData = new FormData();
@@ -375,17 +375,11 @@ export default function CreateAdventureScreen() {
                 </View>
               ) : step.mediaUrl ? (
                 <View style={styles.mediaPreviewContainer}>
-                  <Image
-                    source={{ uri: step.mediaUrl }}
+                  <MediaPreview
+                    uri={step.mediaUrl}
+                    mediaType={step.mediaType ?? "image"}
                     style={styles.mediaPreview}
-                    contentFit="cover"
                   />
-                  {step.mediaType === "video" && (
-                    <View style={styles.videoTypeBadge}>
-                      <Ionicons name="videocam" size={14} color="#fff" />
-                      <Text style={styles.videoTypeBadgeText}>Video</Text>
-                    </View>
-                  )}
                   <View style={styles.mediaPreviewOverlay}>
                     <TouchableOpacity
                       style={styles.mediaReplaceBtn}
@@ -531,22 +525,10 @@ const styles = StyleSheet.create({
   mediaPreview: { width: "100%", height: "100%" },
   mediaPreviewOverlay: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
-  },
-  videoTypeBadge: {
-    position: "absolute",
     top: 8,
-    left: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    right: 8,
+    zIndex: 10,
   },
-  videoTypeBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   mediaReplaceBtn: {
     flexDirection: "row",
     alignItems: "center",

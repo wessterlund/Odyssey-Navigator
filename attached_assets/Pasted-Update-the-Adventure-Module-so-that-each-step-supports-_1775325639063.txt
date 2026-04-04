@@ -1,0 +1,141 @@
+Update the Adventure Module so that each step supports a unified media system with the following capabilities:
+
+Upload existing images and videos
+Capture new images or record videos using the camera
+Immediately show a preview of the selected media attached to the correct step
+Ensure recorded videos are automatically attached and compressed before saving
+
+This must integrate fully with the existing step model and UI.
+
+🎯 CORE REQUIREMENT
+
+Each step must allow the user to:
+
+Upload media (image/video)
+OR capture media (photo/video)
+Automatically attach media to the correct step
+Immediately display a preview
+
+This must feel like one seamless experience.
+
+🧱 1. STEP DATA MODEL
+
+Each step must store:
+
+instruction
+mediaType: "image" | "video"
+mediaUrl: string
+thumbnail (optional)
+📱 2. STEP UI
+
+Each step card must include:
+
+Media Preview Area
+If media exists → show preview (image or video)
+If none → show placeholder (“Add media”)
+Actions
+Upload
+Record
+Replace (if media exists)
+📂 3. UPLOAD FLOW
+
+When user clicks “Upload”:
+
+Open file picker
+Accept image/* and video/*
+Upload file to storage
+Get public URL
+Attach to step
+Immediately show preview
+🎥 4. CAMERA FLOW (PHOTO + VIDEO)
+
+When user clicks “Record”:
+
+Open Camera
+
+Use:
+
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+Camera UI (Fullscreen)
+
+Show:
+
+Live preview
+Buttons:
+Capture Photo
+Start Recording
+Stop Recording
+VIDEO RECORDING FLOW (CRITICAL)
+User taps “Start Recording”
+Begin recording using MediaRecorder
+User taps “Stop Recording”
+Recording stops and generates a video Blob
+AUTO-ATTACH BEHAVIOR (MANDATORY)
+
+After recording stops:
+
+Automatically process the video
+Automatically attach it to the step that initiated recording
+
+Use:
+
+attachMediaToStep(activeStepId, mediaUrl, "video")
+
+NO manual confirmation step required.
+
+🗜️ 5. VIDEO COMPRESSION (REQUIRED)
+
+Before uploading the recorded video:
+
+Compress the video to reduce file size
+Compression Rules
+Max resolution: 720p
+Lower bitrate (~1–2 Mbps)
+Format: MP4 (H.264)
+Implementation Options
+Preferred: ffmpeg.wasm (client-side)
+Fallback: re-encode using MediaStream/canvas
+Flow
+Record video → Blob
+Compress video
+Upload compressed file
+Get public URL
+Attach to step
+🖼️ 6. PREVIEW (MANDATORY)
+
+After upload or recording:
+
+Immediately update step UI:
+
+Image
+<img src={mediaUrl} />
+Video
+<video src={mediaUrl} controls />
+🔁 7. REPLACE MEDIA
+
+If step already has media:
+
+Show “Replace” button
+Allow re-upload or re-record
+🧠 8. STATE MANAGEMENT (ZUSTAND)
+
+Add:
+
+activeStepId
+recordingState ("idle" | "recording")
+mediaUploadState
+recordedMediaBlob
+compressedMediaBlob
+⚠️ IMPORTANT RULES
+Recording must use real browser APIs (no mock)
+Video must be compressed BEFORE upload
+Media must auto-attach to the correct step
+Preview must appear immediately
+No extra save/confirm step after recording
+🚀 FINAL GOAL
+
+A seamless flow:
+
+User taps Upload or Record → selects or records media → video is compressed → uploaded → automatically attached to the correct step → preview appears instantly
+
+This must feel fast, simple, and reliable.

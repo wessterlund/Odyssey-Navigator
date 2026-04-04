@@ -101,7 +101,9 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
         const mimeType = type === "video" ? "video/mp4" : "image/jpeg";
 
         setProcessingPhase("compressing");
-        await new Promise((r) => setTimeout(r, 300));
+        // Video was already recorded at 720p (set via videoQuality prop).
+        // For photos, apply a brief moment to let the camera buffer settle.
+        if (type === "image") await new Promise((r) => setTimeout(r, 100));
 
         setProcessingPhase("uploading");
         let finalUri = localUri;
@@ -112,7 +114,7 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
         }
 
         setProcessingPhase("attaching");
-        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => setTimeout(r, 80));
 
         onConfirm({ uri: finalUri, type });
         resetState();
@@ -222,6 +224,7 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
           style={StyleSheet.absoluteFill}
           facing={facing}
           mode={mode}
+          videoQuality="720p"
         />
 
         {/* Processing overlay — covers everything while compressing/uploading */}

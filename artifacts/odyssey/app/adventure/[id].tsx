@@ -12,10 +12,10 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase, Adventure } from "@/contexts/AppContext";
 import { CoinBadge } from "@/components/CoinBadge";
+import { MediaPreview } from "@/components/MediaPreview";
 import * as Haptics from "expo-haptics";
 
 export default function AdventureDetailScreen() {
@@ -212,10 +212,10 @@ export default function AdventureDetailScreen() {
           {(adventure.steps || []).map((step, index) => (
             <View key={step.id ?? index} style={[styles.stepCard, { backgroundColor: colors.card }]}>
               {step.mediaUrl ? (
-                <Image
-                  source={{ uri: step.mediaUrl }}
+                <MediaPreview
+                  uri={step.mediaUrl}
+                  mediaType={step.mediaType ?? "image"}
                   style={styles.stepMedia}
-                  contentFit="cover"
                 />
               ) : null}
               <View style={styles.stepCardContent}>

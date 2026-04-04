@@ -1,0 +1,140 @@
+Update the Adventure Module so that each step supports real media capture (camera) and image/video upload, and correctly attaches the media to the step.
+
+This must be implemented using real browser APIs and fully integrated into the existing step data model.
+
+🎯 CORE REQUIREMENT (NON-NEGOTIABLE)
+
+When the user clicks the “Record” button on a step:
+
+The app MUST:
+
+Open the device camera (not file picker)
+Allow the user to:
+Record a video
+OR take a photo
+Let the user:
+Preview
+Retake
+Confirm
+Upload the media
+Attach it to the step
+🎥 1. CAMERA IMPLEMENTATION (REQUIRED)
+
+Use:
+
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+Recording
+
+Use:
+
+MediaRecorder API
+
+Flow:
+
+Start recording
+Stop recording → get Blob
+Convert to file
+Upload to storage
+Photo Capture
+Capture frame from video stream using <canvas>
+Convert to image blob
+🧱 2. STEP DATA MODEL (MUST UPDATE)
+
+Each step must store:
+
+instruction
+mediaType: "video" | "image"
+mediaUrl: string
+thumbnail (optional)
+📱 3. CAMERA UI (STRICT)
+
+When “Record” is clicked:
+
+Open a fullscreen camera modal:
+
+Layout
+Live camera preview (full width)
+Controls at bottom:
+
+Buttons:
+
+Start Recording
+Stop Recording
+Capture Photo
+Retake
+Confirm
+Behavior
+Default state: preview camera
+User chooses:
+Record video
+OR capture photo
+
+After capture:
+
+Show preview
+Show:
+Retake
+Confirm
+🔄 4. MEDIA UPLOAD
+
+After confirmation:
+
+Upload media to:
+Supabase Storage OR backend
+Get public URL
+Update step:
+step.mediaUrl = uploadedUrl
+step.mediaType = "video" | "image"
+🧩 5. STEP UI UPDATE
+
+Each step card must show:
+
+Media preview (image or video thumbnail)
+Buttons:
+Record
+Upload
+Replace
+📂 6. UPLOAD OPTION (FALLBACK)
+
+If user clicks “Upload”:
+
+Open file picker
+Accept:
+image/*
+video/*
+
+Then:
+
+Upload
+Attach to step
+⚠️ 7. ERROR HANDLING
+
+If camera fails:
+
+Show message:
+“Camera not available. Please upload instead.”
+🔁 8. STATE MANAGEMENT (ZUSTAND)
+
+Add:
+
+recordingState: "idle" | "recording" | "preview"
+recordedMediaBlob
+activeStepId
+⚠️ IMPORTANT RULES
+MUST use real camera APIs (no mock)
+MUST support both photo + video
+MUST allow retake before saving
+MUST persist media (no temporary state only)
+MUST update step immediately after upload
+🚀 FINAL GOAL
+
+A working system where:
+
+Parent clicks “Record”
+Camera opens instantly
+User records or captures media
+Media is previewed
+Media is saved and attached to step
+Step shows the recorded content
+
+This must feel like a real mobile camera experience, not a basic file upload.

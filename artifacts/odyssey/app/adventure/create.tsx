@@ -18,6 +18,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase, Step } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { CameraModal, CapturedMedia } from "@/components/CameraModal";
 
 export default function CreateAdventureScreen() {
   const colors = useColors();
@@ -37,6 +38,9 @@ export default function CreateAdventureScreen() {
   const [completionBonus, setCompletionBonus] = useState("5");
   const [steps, setSteps] = useState<Step[]>([{ instruction: "", tip: "" }]);
   const [saving, setSaving] = useState(false);
+
+  const [cameraVisible, setCameraVisible] = useState(false);
+  const [cameraTargetStep, setCameraTargetStep] = useState<number | null>(null);
 
   const generateAdventure = async () => {
     if (!currentLearner || !goal.trim()) {
@@ -162,6 +166,23 @@ export default function CreateAdventureScreen() {
     setSteps(updated);
   };
 
+  const openCamera = (index: number) => {
+    setCameraTargetStep(index);
+    setCameraVisible(true);
+  };
+
+  const handleCameraConfirm = (media: CapturedMedia) => {
+    if (cameraTargetStep === null) return;
+    const updated = [...steps];
+    updated[cameraTargetStep] = {
+      ...updated[cameraTargetStep],
+      mediaUrl: media.uri,
+      mediaType: media.type,
+    };
+    setSteps(updated);
+    setCameraTargetStep(null);
+  };
+
   if (!currentLearner) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -187,6 +208,12 @@ export default function CreateAdventureScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <CameraModal
+        visible={cameraVisible}
+        onClose={() => { setCameraVisible(false); setCameraTargetStep(null); }}
+        onConfirm={handleCameraConfirm}
+      />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 40 }]}>
         {/* AI Generation Section */}
@@ -322,13 +349,19 @@ export default function CreateAdventureScreen() {
                     style={styles.mediaPreview}
                     contentFit="cover"
                   />
+                  {step.mediaType === "video" && (
+                    <View style={styles.videoTypeBadge}>
+                      <Ionicons name="videocam" size={14} color="#fff" />
+                      <Text style={styles.videoTypeBadgeText}>Video</Text>
+                    </View>
+                  )}
                   <View style={styles.mediaPreviewOverlay}>
                     <TouchableOpacity
                       style={styles.mediaReplaceBtn}
                       onPress={() => {
                         Alert.alert("Replace Media", "Choose source:", [
-                          { text: "Gallery", onPress: () => pickImageForStep(index, "gallery") },
-                          { text: "Camera", onPress: () => pickImageForStep(index, "camera") },
+                          { text: "Gallery / Files", onPress: () => pickImageForStep(index, "gallery") },
+                          { text: "Camera", onPress: () => openCamera(index) },
                           { text: "Remove", style: "destructive", onPress: () => removeMediaFromStep(index) },
                           { text: "Cancel", style: "cancel" },
                         ]);
@@ -349,8 +382,8 @@ export default function CreateAdventureScreen() {
                     <Text style={[styles.mediaBtnText, { color: colors.primary }]}>Upload</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.mediaBtn, { borderColor: colors.border }]}
-                    onPress={() => pickImageForStep(index, "camera")}
+                    style={[styles.mediaBtn, { borderColor: colors.border, backgroundColor: colors.secondary }]}
+                    onPress={() => openCamera(index)}
                   >
                     <Ionicons name="camera-outline" size={18} color={colors.primary} />
                     <Text style={[styles.mediaBtnText, { color: colors.primary }]}>Record</Text>
@@ -458,6 +491,19 @@ const styles = StyleSheet.create({
     bottom: 8,
     right: 8,
   },
+  videoTypeBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  videoTypeBadgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   mediaReplaceBtn: {
     flexDirection: "row",
     alignItems: "center",

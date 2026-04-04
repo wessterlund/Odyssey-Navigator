@@ -136,36 +136,6 @@ export default function RewardsScreen() {
     );
   };
 
-  const deleteReward = (id: number, name: string) => {
-    const showAlert = () => {
-      Alert.alert("Delete Reward", `Delete "${name}"?`, [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const res = await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
-              if (!res.ok) throw new Error(`Server error ${res.status}`);
-              if (currentLearner) await loadRewards(currentLearner.id);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            } catch {
-              Alert.alert("Error", "Could not delete reward — please try again.");
-            }
-          },
-        },
-      ]);
-    };
-    // On Android, the GestureHandler holds the active touch event; delaying by
-    // one frame lets it settle so Alert.alert isn't swallowed. On web/iOS the
-    // alert must stay in the synchronous gesture callback or the browser blocks it.
-    if (Platform.OS === "android") {
-      setTimeout(showAlert, 50);
-    } else {
-      showAlert();
-    }
-  };
-
   if (!currentLearner) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -222,7 +192,6 @@ export default function RewardsScreen() {
                   colors={colors}
                   onPress={() => router.push(`/reward/${reward.id}`)}
                   onRedeem={() => redeemReward(reward)}
-                  onDelete={() => deleteReward(reward.id, reward.name)}
                 />
               ))}
             </View>
@@ -321,7 +290,6 @@ function RewardCard({
   colors,
   onPress,
   onRedeem,
-  onDelete,
 }: {
   reward: Reward;
   wallet: any;
@@ -329,20 +297,16 @@ function RewardCard({
   colors: any;
   onPress: () => void;
   onRedeem: () => void;
-  onDelete: () => void;
 }) {
   const canAfford = (wallet?.coins ?? 0) >= reward.cost;
   const isRedeeming = redeemingId === reward.id;
 
   return (
-    // Wrapper holds the card + the delete button, so the button is outside
-    // overflow:hidden and renders correctly above the card image
-    <View style={styles.rewardCardWrapper}>
-      <TouchableOpacity
-        style={[styles.contentCard, { backgroundColor: colors.card }]}
-        activeOpacity={0.88}
-        onPress={onPress}
-      >
+    <TouchableOpacity
+      style={[styles.contentCard, { backgroundColor: colors.card }]}
+      activeOpacity={0.88}
+      onPress={onPress}
+    >
         {reward.imageUrl ? (
           <Image
             source={{ uri: reward.imageUrl }}
@@ -350,7 +314,9 @@ function RewardCard({
             contentFit="cover"
           />
         ) : (
-          <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]} />
+          <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]}>
+            <Ionicons name="gift" size={32} color={canAfford ? "#16A34A" : colors.primary} />
+          </View>
         )}
         <View style={styles.contentCardBody}>
           <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>
@@ -367,16 +333,6 @@ function RewardCard({
           )}
         </View>
       </TouchableOpacity>
-
-      {/* Trash button — sits outside overflow:hidden so it renders above the image */}
-      <TouchableOpacity
-        style={styles.cardDeleteBtn}
-        onPress={onDelete}
-        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-      >
-        <Ionicons name="trash-outline" size={13} color="#EF4444" />
-      </TouchableOpacity>
-    </View>
   );
 }
 
@@ -463,10 +419,6 @@ const styles = StyleSheet.create({
     gap: CARD_GAP,
   },
 
-  rewardCardWrapper: {
-    width: CARD_WIDTH,
-    position: "relative",
-  },
   contentCard: {
     width: CARD_WIDTH,
     borderRadius: 14,
@@ -477,23 +429,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     backgroundColor: "#fff",
-  },
-  cardDeleteBtn: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    zIndex: 10,
-    backgroundColor: "rgba(255,255,255,0.88)",
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    elevation: 2,
   },
   contentCardImage: {
     width: "100%",

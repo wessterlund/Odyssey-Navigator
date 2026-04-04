@@ -7,13 +7,17 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  Image,
 } from "react-native";
+
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
+
+const TEACHER_HERO = require("@/assets/images/teacher-hero.png");
 
 const TIPS = [
   {
@@ -117,13 +121,19 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
 
       {/* ─── Hero Card ──────────────────────────────────── */}
       <View style={[styles.heroCard, { backgroundColor: colors.primary }]}>
+        {/* Left: stat number + description */}
         <View style={styles.heroLeft}>
-          <Text style={styles.heroNum}>{activeAdventures.length || learners.length}</Text>
+          <Text style={styles.heroNum}>{activeAdventures.length || learners.length || 10}</Text>
           <Text style={styles.heroSub}>
-            {activeAdventures.length > 0
-              ? "Adventures ready\nto explore"
-              : "Learners on\nyour Odyssey"}
+            {"Students currently\non adventures"}
           </Text>
+        </View>
+
+        {/* Right: illustration + CTA button */}
+        <View style={styles.heroRight}>
+          <View style={styles.heroImgWrap}>
+            <Image source={TEACHER_HERO} style={styles.heroImg} resizeMode="cover" />
+          </View>
           <TouchableOpacity
             style={styles.heroBtn}
             onPress={() => {
@@ -131,13 +141,8 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
               router.push("/(tabs)/students");
             }}
           >
-            <Text style={styles.heroBtnText}>Students Hub</Text>
+            <Text style={styles.heroBtnText}>Teacher's Hub</Text>
           </TouchableOpacity>
-        </View>
-        <View style={styles.heroRight}>
-          <Text style={styles.heroMascot}>🐙</Text>
-          <View style={styles.heroBubble1} />
-          <View style={styles.heroBubble2} />
         </View>
       </View>
 
@@ -235,16 +240,63 @@ const styles = StyleSheet.create({
   hiNameBold: { fontSize: 28, fontWeight: "800" },
   avatarBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
   avatarBtnText: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  heroCard: { borderRadius: 24, padding: 24, flexDirection: "row", alignItems: "center", overflow: "hidden", minHeight: 150 },
-  heroLeft: { flex: 1, gap: 6 },
-  heroNum: { fontSize: 56, fontWeight: "900", color: "#fff", lineHeight: 60 },
-  heroSub: { fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 20 },
-  heroBtn: { marginTop: 8, backgroundColor: "#fff", alignSelf: "flex-start", paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20 },
-  heroBtnText: { fontSize: 14, fontWeight: "700", color: "#2F80ED" },
-  heroRight: { alignItems: "center", justifyContent: "center", width: 110, position: "relative" },
-  heroMascot: { fontSize: 70, textAlign: "center" },
-  heroBubble1: { position: "absolute", width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", top: -10, right: 0 },
-  heroBubble2: { position: "absolute", width: 20, height: 20, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.12)", bottom: 0, left: 5 },
+  /* ── Hero Card ── */
+  heroCard: {
+    borderRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingLeft: 22,
+    paddingRight: 0,
+    flexDirection: "row",
+    alignItems: "stretch",
+    overflow: "hidden",
+    minHeight: 170,
+  },
+  heroLeft: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingBottom: 4,
+  },
+  heroNum: {
+    fontSize: 72,
+    fontWeight: "900",
+    color: "#fff",
+    lineHeight: 76,
+  },
+  heroSub: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.9)",
+    lineHeight: 22,
+  },
+  heroRight: {
+    width: 160,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    paddingBottom: 20,
+    paddingRight: 16,
+  },
+  heroImgWrap: {
+    width: 160,
+    height: 90,
+    overflow: "hidden",
+  },
+  heroImg: {
+    width: 300,
+    height: 172,
+    marginLeft: -95,
+    marginTop: -22,
+  },
+  heroBtn: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    alignSelf: "stretch",
+    alignItems: "center",
+  },
+  heroBtnText: { fontSize: 14, fontWeight: "700", color: "#2F80ED", whiteSpace: "nowrap" } as any,
   catGrid: { flexDirection: "row", gap: 12 },
   catTile: { flex: 1, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 10, alignItems: "center", gap: 8 },
   catEmoji: { fontSize: 32 },

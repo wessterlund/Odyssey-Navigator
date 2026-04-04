@@ -178,7 +178,9 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
     };
     recorder.onstop = async () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      const blob = new Blob(chunksRef.current, { type: mimeType });
+      // Strip codec params (e.g. "video/webm;codecs=vp8,opus" → "video/webm")
+      const cleanMime = mimeType.split(";")[0];
+      const blob = new Blob(chunksRef.current, { type: cleanMime });
       await processAndAttach(blob, "video");
     };
     recorder.start(100);

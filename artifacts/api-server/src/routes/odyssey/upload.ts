@@ -17,11 +17,20 @@ const storage = multer.diskStorage({
   },
 });
 
+const ALLOWED_EXTS = new Set([
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif",
+  ".mp4", ".mov", ".webm", ".avi", ".mkv", ".m4v",
+]);
+
 const upload = multer({
   storage,
   limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
+    const mime = (file.mimetype || "").toLowerCase();
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const mimeOk = mime.startsWith("image/") || mime.startsWith("video/") || mime === "application/octet-stream";
+    const extOk = ALLOWED_EXTS.has(ext);
+    if (mimeOk || extOk) {
       cb(null, true);
     } else {
       cb(new Error("Only image and video files are allowed"));

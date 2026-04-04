@@ -24,8 +24,11 @@ async function uploadToServer(localUri: string, mimeType: string): Promise<strin
   const formData = new FormData();
   if (Platform.OS === "web") {
     const response = await fetch(localUri);
-    const blob = await response.blob();
-    const ext = mimeType.startsWith("video/") ? ".mp4" : ".jpg";
+    const rawBlob = await response.blob();
+    // Re-type the blob so the server always receives a proper image/ or video/ MIME type
+    const cleanMime = mimeType.split(";")[0] || rawBlob.type || "application/octet-stream";
+    const blob = new Blob([rawBlob], { type: cleanMime });
+    const ext = cleanMime.startsWith("video/") ? ".mp4" : ".jpg";
     formData.append("file", blob, `pick${ext}`);
   } else {
     const ext = mimeType.startsWith("video/") ? ".mp4" : ".jpg";

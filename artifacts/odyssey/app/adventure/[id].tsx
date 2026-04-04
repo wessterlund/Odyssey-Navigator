@@ -32,6 +32,7 @@ export default function AdventureDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     fetchAdventure();
@@ -51,21 +52,18 @@ export default function AdventureDetailScreen() {
     setLoading(false);
   };
 
-  const deleteAdventure = () => {
-    Alert.alert("Delete Adventure", "Are you sure? This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setDeleting(true);
-          await fetch(`${apiBase()}/adventures/${id}`, { method: "DELETE" });
-          if (currentLearner) await loadAdventures(currentLearner.id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          router.back();
-        },
-      },
-    ]);
+  const deleteAdventure = async () => {
+    setDeleting(true);
+    try {
+      await fetch(`${apiBase()}/adventures/${id}`, { method: "DELETE" });
+      if (currentLearner) await loadAdventures(currentLearner.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      router.back();
+    } catch {
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const duplicateAdventure = async () => {
@@ -143,13 +141,24 @@ export default function AdventureDetailScreen() {
               color={colors.primary}
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={deleteAdventure} disabled={deleting} style={styles.headerActionBtn}>
-            {deleting ? (
-              <ActivityIndicator size="small" color={colors.destructive} />
-            ) : (
+          {confirmDelete ? (
+            <View style={styles.inlineConfirm}>
+              <TouchableOpacity onPress={() => setConfirmDelete(false)} style={styles.inlineCancelBtn}>
+                <Text style={[styles.inlineCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={deleteAdventure} disabled={deleting} style={styles.inlineDeleteBtn}>
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.inlineDeleteText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => setConfirmDelete(true)} style={styles.headerActionBtn}>
               <Ionicons name="trash-outline" size={22} color={colors.destructive} />
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -326,4 +335,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   startBtnText: { fontSize: 18, fontWeight: "700" },
+  inlineConfirm: { flexDirection: "row", alignItems: "center", gap: 6 },
+  inlineCancelBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  inlineCancelText: { fontSize: 13, fontWeight: "600" },
+  inlineDeleteBtn: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minWidth: 56,
+    alignItems: "center",
+  },
+  inlineDeleteText: { fontSize: 13, fontWeight: "700", color: "#fff" },
 });

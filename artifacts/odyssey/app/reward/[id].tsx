@@ -32,6 +32,7 @@ export default function RewardDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [redeemed, setRedeemed] = useState(false);
 
@@ -132,28 +133,19 @@ export default function RewardDetailScreen() {
     setPublishing(false);
   };
 
-  const handleDelete = () => {
-    Alert.alert("Delete Reward", "Are you sure? This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setDeleting(true);
-          try {
-            const res = await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
-            if (!res.ok) throw new Error(`Server error ${res.status}`);
-            if (currentLearner) await loadRewards(currentLearner.id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            router.back();
-          } catch {
-            Alert.alert("Error", "Could not delete reward — please try again.");
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      if (currentLearner) await loadRewards(currentLearner.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      router.back();
+    } catch {
+      setConfirmDelete(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -188,13 +180,24 @@ export default function RewardDetailScreen() {
               )}
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={handleDelete} disabled={deleting}>
-            {deleting ? (
-              <ActivityIndicator size="small" color={colors.destructive} />
-            ) : (
+          {confirmDelete ? (
+            <View style={styles.inlineConfirm}>
+              <TouchableOpacity onPress={() => setConfirmDelete(false)} style={styles.inlineCancelBtn}>
+                <Text style={[styles.inlineCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDelete} disabled={deleting} style={styles.inlineDeleteBtn}>
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.inlineDeleteText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={() => setConfirmDelete(true)} disabled={deleting}>
               <Ionicons name="trash-outline" size={22} color={colors.destructive} />
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -358,4 +361,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   redeemBtnText: { fontSize: 17, fontWeight: "700" },
+  inlineConfirm: { flexDirection: "row", alignItems: "center", gap: 6 },
+  inlineCancelBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  inlineCancelText: { fontSize: 13, fontWeight: "600" },
+  inlineDeleteBtn: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minWidth: 56,
+    alignItems: "center",
+  },
+  inlineDeleteText: { fontSize: 13, fontWeight: "700", color: "#fff" },
 });

@@ -1,0 +1,143 @@
+Fix and refactor the video recording feature in the Adventure Step module.
+
+Do NOT rewrite everything. Update the existing implementation to follow this EXACT structure.
+
+🎯 GOAL
+
+When the user clicks "Record" on a step:
+
+Open camera
+Record video using Start / Stop buttons
+When Stop is clicked:
+Immediately process the video
+Compress it
+Upload it
+Attach it to the correct step
+Show preview inside the step
+🧩 STEP 1 — TRACK WHICH STEP IS ACTIVE
+
+Add state:
+
+const [activeStepId, setActiveStepId] = useState(null);
+
+When user clicks Record:
+
+setActiveStepId(step.id);
+openCamera();
+🎥 STEP 2 — CAMERA SETUP (DO NOT SKIP)
+
+Create function:
+
+async function openCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true
+  });
+
+  videoRef.current.srcObject = stream;
+}
+
+Use a <video> element to show preview.
+
+🔴 STEP 3 — RECORDING LOGIC (STRICT)
+
+Create:
+
+let mediaRecorder;
+let recordedChunks = [];
+Start Recording
+function startRecording() {
+  recordedChunks = [];
+
+  mediaRecorder = new MediaRecorder(videoRef.current.srcObject);
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+
+  mediaRecorder.start();
+}
+Stop Recording (IMPORTANT)
+function stopRecording() {
+  mediaRecorder.stop();
+
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(recordedChunks, { type: "video/webm" });
+
+    await handleRecordedVideo(blob);
+  };
+}
+🗜️ STEP 4 — VIDEO COMPRESSION (SIMPLIFIED — DO THIS FIRST)
+
+Do NOT use ffmpeg initially (too complex).
+
+Instead:
+
+async function compressVideo(blob) {
+  // simple fallback: return original blob for now
+  // TODO: upgrade later
+  return blob;
+}
+
+IMPORTANT:
+
+Replit fails with ffmpeg often
+First make it WORK, then optimize
+☁️ STEP 5 — UPLOAD FUNCTION
+
+Create:
+
+async function uploadVideo(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+  return data.url;
+}
+🔗 STEP 6 — ATTACH TO STEP (CRITICAL)
+async function handleRecordedVideo(blob) {
+  const compressed = await compressVideo(blob);
+
+  const file = new File([compressed], "step-video.webm", {
+    type: "video/webm"
+  });
+
+  const url = await uploadVideo(file);
+
+  attachVideoToStep(activeStepId, url);
+}
+🧱 STEP 7 — UPDATE STEP STATE
+function attachVideoToStep(stepId, url) {
+  setSteps((prev) =>
+    prev.map((step) =>
+      step.id === stepId
+        ? { ...step, mediaUrl: url, mediaType: "video" }
+        : step
+    )
+  );
+}
+🖼️ STEP 8 — PREVIEW (MANDATORY)
+
+Inside step card:
+
+{step.mediaUrl && step.mediaType === "video" && (
+  <video src={step.mediaUrl} controls className="w-full rounded" />
+)}
+⚠️ CRITICAL RULES
+DO NOT use ffmpeg yet
+DO NOT skip MediaRecorder
+DO NOT require manual save
+MUST auto-attach after recording
+MUST use activeStepId (no guessing)
+🚀 FINAL RESULT
+
+Working flow:
+
+Click Record → Camera opens → Start → Stop → Video processed → Uploaded → Attached to step → Preview appears
+
+No broken state, no missing attachment, no extra steps.

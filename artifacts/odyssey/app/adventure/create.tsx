@@ -20,6 +20,11 @@ import * as ImagePicker from "expo-image-picker";
 import { CameraModal, CapturedMedia } from "@/components/CameraModal";
 import { MediaPreview } from "@/components/MediaPreview";
 
+// Steps get a local _uid during creation so camera tracking is stable (no array-index drift)
+type StepLocal = Step & { _uid: string };
+let _uidSeq = 0;
+const makeUid = () => `step_${++_uidSeq}_${Date.now()}`;
+
 async function uploadToServer(localUri: string, mimeType: string): Promise<string> {
   const formData = new FormData();
   if (Platform.OS === "web") {
@@ -56,14 +61,14 @@ export default function CreateAdventureScreen() {
   const [description, setDescription] = useState("");
   const [coinsPerStep, setCoinsPerStep] = useState("2");
   const [completionBonus, setCompletionBonus] = useState("5");
-  const [steps, setSteps] = useState<Step[]>([{ instruction: "", tip: "" }]);
+  const [steps, setSteps] = useState<StepLocal[]>([{ instruction: "", tip: "", _uid: makeUid() }]);
   const [saving, setSaving] = useState(false);
 
   const [cameraVisible, setCameraVisible] = useState(false);
-  const [cameraTargetStep, setCameraTargetStep] = useState<number | null>(null);
-  const cameraTargetStepRef = useRef<number | null>(null);
+  // Track the target step by _uid (stable string ID) — immune to array index changes
+  const activeStepUidRef = useRef<string | null>(null);
   const [uploadingStep, setUploadingStep] = useState<number | null>(null);
-  const [replaceMenuStep, setReplaceMenuStep] = useState<number | null>(null);
+  const [replaceMenuStep, setReplaceMenuStep] = useState<string | null>(null);
 
   const generateAdventure = async () => {
     if (!currentLearner || !goal.trim()) {
@@ -87,6 +92,7 @@ export default function CreateAdventureScreen() {
         instruction: s.instruction,
         tip: s.tip || "",
         mediaSuggestion: s.mediaSuggestion || "",
+        _uid: makeUid(),
       })));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
@@ -115,7 +121,7 @@ export default function CreateAdventureScreen() {
           description: description || null,
           coinsPerStep: parseInt(coinsPerStep) || 2,
           completionBonus: parseInt(completionBonus) || 5,
-          steps,
+          steps: steps.map(({ _uid, ...s }) => s), // strip local-only _uid before sending
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -129,7 +135,7 @@ export default function CreateAdventureScreen() {
   };
 
   const addStep = () => {
-    setSteps([...steps, { instruction: "", tip: "" }]);
+    setSteps((prev) => [...prev, { instruction: "", tip: "", _uid: makeUid() }]);
   };
 
   const updateStep = (index: number, field: keyof Step, value: string) => {
@@ -197,25 +203,23 @@ export default function CreateAdventureScreen() {
     setSteps(updated);
   };
 
-  const openCamera = (index: number) => {
-    cameraTargetStepRef.current = index;
-    setCameraTargetStep(index);
+  // uid = step._uid (a stable string, not an array index)
+  const openCamera = (uid: string) => {
+    activeStepUidRef.current = uid;
     setCameraVisible(true);
     setReplaceMenuStep(null);
   };
 
+  // attachVideoToStep — called by CameraModal's onConfirm once upload completes
   const handleCameraConfirm = (media: CapturedMedia) => {
-    const idx = cameraTargetStepRef.current;
-    if (idx === null) return;
-    // Functional updater avoids stale-closure on steps array
-    setSteps((prev) => {
-      const updated = [...prev];
-      updated[idx] = { ...updated[idx], mediaUrl: media.uri, mediaType: media.type };
-      return updated;
-    });
-    cameraTargetStepRef.current = null;
-    setCameraTargetStep(null);
-    setCameraVisible(false); // close modal here, not inside CameraModal
+    const uid = activeStepUidRef.current;
+    if (!uid) return;
+    // Functional updater + uid match: immune to array-index changes and stale closures
+    setSteps((prev) =>
+      prev.map((s) => (s._uid === uid ? { ...s, mediaUrl: media.uri, mediaType: media.type } : s))
+    );
+    activeStepUidRef.current = null;
+    setCameraVisible(false);
   };
 
   if (!currentLearner) {
@@ -246,7 +250,7 @@ export default function CreateAdventureScreen() {
 
       <CameraModal
         visible={cameraVisible}
-        onClose={() => { setCameraVisible(false); setCameraTargetStep(null); }}
+        onClose={() => { setCameraVisible(false); activeStepUidRef.current = null; }}
         onConfirm={handleCameraConfirm}
       />
 
@@ -342,7 +346,7 @@ export default function CreateAdventureScreen() {
         <View style={styles.stepsSection}>
           <Text style={[styles.stepsTitle, { color: colors.foreground }]}>Steps</Text>
           {steps.map((step, index) => (
-            <View key={index} style={[styles.stepCard, { backgroundColor: colors.card }]}>
+            <View key={step._uid} style={[styles.stepCard, { backgroundColor: colors.card }]}>
               <View style={styles.stepHeader}>
                 <View style={[styles.stepNum, { backgroundColor: colors.primary }]}>
                   <Text style={styles.stepNumText}>{index + 1}</Text>
@@ -390,7 +394,7 @@ export default function CreateAdventureScreen() {
                     style={StyleSheet.absoluteFillObject}
                   />
                   <View style={styles.mediaPreviewOverlay}>
-                    {replaceMenuStep === index ? (
+                    {replaceMenuStep === step._uid ? (
                       // Web-friendly inline replace menu
                       <View style={[styles.replaceMenu, { backgroundColor: colors.card }]}>
                         <TouchableOpacity
@@ -402,7 +406,7 @@ export default function CreateAdventureScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.replaceMenuItem}
-                          onPress={() => { openCamera(index); setReplaceMenuStep(null); }}
+                          onPress={() => { openCamera(step._uid); setReplaceMenuStep(null); }}
                         >
                           <Ionicons name="camera-outline" size={15} color={colors.foreground} />
                           <Text style={[styles.replaceMenuText, { color: colors.foreground }]}>Camera</Text>
@@ -426,11 +430,11 @@ export default function CreateAdventureScreen() {
                         style={styles.mediaReplaceBtn}
                         onPress={() => {
                           if (Platform.OS === "web") {
-                            setReplaceMenuStep(index);
+                            setReplaceMenuStep(step._uid);
                           } else {
                             Alert.alert("Replace Media", "Choose source:", [
                               { text: "Gallery / Files", onPress: () => pickImageForStep(index, "gallery") },
-                              { text: "Camera", onPress: () => openCamera(index) },
+                              { text: "Camera", onPress: () => openCamera(step._uid) },
                               { text: "Remove", style: "destructive", onPress: () => removeMediaFromStep(index) },
                               { text: "Cancel", style: "cancel" },
                             ]);
@@ -455,7 +459,7 @@ export default function CreateAdventureScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.mediaBtn, { borderColor: colors.border, backgroundColor: colors.secondary }]}
-                    onPress={() => openCamera(index)}
+                    onPress={() => openCamera(step._uid)}
                     disabled={uploadingStep !== null}
                   >
                     <Ionicons name="camera-outline" size={18} color={colors.primary} />

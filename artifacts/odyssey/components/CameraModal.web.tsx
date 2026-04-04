@@ -57,6 +57,8 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Direct ref to the <video> DOM element — avoids getElementById which fails in Modal portals
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // --- UI state ---
   const [facing, setFacing] = useState<"user" | "environment">("environment");
@@ -111,14 +113,12 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
       });
       streamRef.current = stream;
       setPermissionDenied(false);
-      // Small delay ensures the <video> element is in the DOM
-      setTimeout(() => {
-        const el = document.getElementById("__cam_preview__") as HTMLVideoElement | null;
-        if (el) {
-          el.srcObject = stream;
-          el.play().catch(() => {});
-        }
-      }, 50);
+      // videoRef.current is set because React commits the DOM before effects fire.
+      // No getElementById/setTimeout needed — the ref is always the live element.
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
     } catch {
       setPermissionDenied(true);
     }
@@ -154,7 +154,7 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
 
   const capturePhoto = async () => {
     if (cameraState !== "idle") return;
-    const el = document.getElementById("__cam_preview__") as HTMLVideoElement | null;
+    const el = videoRef.current;
     if (!el) return;
     const canvas = document.createElement("canvas");
     canvas.width = el.videoWidth || 1280;
@@ -221,7 +221,7 @@ export function CameraModal({ visible, onClose, onConfirm }: Props) {
       <View style={styles.container}>
         {/* Live camera viewfinder */}
         {React.createElement("video", {
-          id: "__cam_preview__",
+          ref: videoRef,
           autoPlay: true,
           muted: true,
           playsInline: true,

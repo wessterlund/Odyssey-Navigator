@@ -18,6 +18,7 @@ import { useApp, apiBase } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
 const TEACHER_HERO = require("@/assets/images/strawberry-hero.png");
+const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
 
 const TIPS = [
   {
@@ -153,7 +154,7 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/adventures"); }}
           activeOpacity={0.8}
         >
-          <Text style={styles.catEmoji}>🗺️</Text>
+          <Image source={ADVENTURE_ICON} style={styles.catImg} resizeMode="contain" />
           <Text style={[styles.catLabel, { color: colors.foreground }]}>Adventures</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -297,6 +298,7 @@ const styles = StyleSheet.create({
   catGrid: { flexDirection: "row", gap: 12 },
   catTile: { flex: 1, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 10, alignItems: "center", gap: 8 },
   catEmoji: { fontSize: 32 },
+  catImg: { width: 52, height: 44 },
   catLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
   updatesSection: { gap: 14 },
   updatesTitle: { fontSize: 24, fontWeight: "800" },

@@ -7,13 +7,17 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  Image,
 } from "react-native";
+
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
+
+const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
 
 const AVATAR_COLORS = [
   "#2F80ED","#8B5CF6","#EC4899","#F59E0B","#10B981","#EF4444","#06B6D4","#F97316",
@@ -158,7 +162,11 @@ export default function ParentHome({ topPadding }: { topPadding?: number }) {
             }}
             activeOpacity={0.8}
           >
-            <Text style={styles.catEmoji}>{cat.emoji}</Text>
+            {cat.label === "Adventures" ? (
+              <Image source={ADVENTURE_ICON} style={styles.catImg} resizeMode="contain" />
+            ) : (
+              <Text style={styles.catEmoji}>{cat.emoji}</Text>
+            )}
             <Text style={[styles.catLabel, { color: colors.foreground }]}>{cat.label}</Text>
           </TouchableOpacity>
         ))}
@@ -279,6 +287,7 @@ const styles = StyleSheet.create({
   catGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   catTile: { width: "30.5%", borderRadius: 16, paddingVertical: 16, alignItems: "center", gap: 6 },
   catEmoji: { fontSize: 28 },
+  catImg: { width: 48, height: 41 },
   catLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
 
   /* Schedule */

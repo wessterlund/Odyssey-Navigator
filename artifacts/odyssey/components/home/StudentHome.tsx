@@ -9,12 +9,16 @@ import {
   Platform,
   Dimensions,
   Animated,
+  Image,
 } from "react-native";
+
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
+
+const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -192,7 +196,7 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
                       {adventure.steps?.[0]?.mediaUrl ? (
                         <View style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
                       ) : (
-                        <Text style={styles.cardThumbEmoji}>{emoji}</Text>
+                        <Image source={ADVENTURE_ICON} style={styles.cardThumbImg} resizeMode="contain" />
                       )}
                     </View>
                   </View>
@@ -324,6 +328,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   cardThumbEmoji: { fontSize: 40 },
+  cardThumbImg: { width: 80, height: 68 },
   completedBanner: {
     flexDirection: "row",
     alignItems: "center",

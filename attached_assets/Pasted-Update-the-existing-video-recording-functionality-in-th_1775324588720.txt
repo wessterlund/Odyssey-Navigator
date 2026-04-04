@@ -1,0 +1,118 @@
+Update the existing video recording functionality in the Adventure Module to follow this exact behavior:
+
+🎯 CORE REQUIREMENT
+
+When the user clicks the Record button on a step:
+
+Open the device camera
+Allow the user to record video using:
+Start button
+Stop button
+Once recording stops:
+Automatically process the video
+Compress it
+Upload it
+Attach it to the correct step
+
+No extra confirmation step is required.
+
+🎥 1. RECORDING FLOW (STRICT)
+
+When camera opens:
+
+UI
+
+Fullscreen camera view with:
+
+Live preview
+Button: “Start Recording”
+Button: “Stop Recording”
+Behavior
+Start Recording:
+Initialize MediaRecorder
+Begin recording stream
+Stop Recording:
+Stop MediaRecorder
+Generate video Blob
+🔗 2. AUTO-ATTACH TO STEP (CRITICAL)
+
+The system must know which step triggered recording.
+
+Use state:
+
+activeStepId
+
+After recording stops:
+
+attachVideoToStep(activeStepId, videoUrl)
+
+No manual selection required.
+
+🗜️ 3. VIDEO COMPRESSION (REQUIRED)
+
+Before upload, compress the video to reduce storage size.
+
+Approach
+
+Use one of:
+
+Option A (Preferred):
+ffmpeg.wasm (client-side compression)
+Option B:
+Canvas + MediaStream re-encoding (lighter fallback)
+Compression Rules
+Resolution: max 720p
+Bitrate: reduce to ~1–2 Mbps
+Format: MP4 (H.264)
+Example (ffmpeg.wasm)
+Load ffmpeg
+Input: recorded Blob
+Output: compressed MP4
+☁️ 4. UPLOAD FLOW
+
+After compression:
+
+Upload video to storage (Supabase or backend)
+Get public URL
+🧱 5. UPDATE STEP DATA
+
+Update step:
+
+mediaType = "video"
+mediaUrl = compressedVideoUrl
+
+Persist immediately.
+
+🖼️ 6. STEP UI UPDATE
+
+After recording completes:
+
+Replace placeholder with video thumbnail
+Show “Replace” button
+⚠️ 7. ERROR HANDLING
+
+If:
+
+Camera fails → show fallback message
+Compression fails → upload original video (fallback)
+Upload fails → retry option
+🧠 8. STATE MANAGEMENT (ZUSTAND)
+
+Add:
+
+activeStepId
+recordingState ("idle" | "recording")
+rawVideoBlob
+compressedVideoBlob
+⚠️ IMPORTANT RULES
+No manual “Save video” step
+Recording must attach automatically
+Compression must happen BEFORE upload
+Must not store large raw video files
+🚀 FINAL GOAL
+
+A seamless flow:
+
+User taps Record → camera opens → taps Start → taps Stop → video is compressed → video is uploaded → video is attached to the step automatically
+
+This must feel instant, simple, and reliable.

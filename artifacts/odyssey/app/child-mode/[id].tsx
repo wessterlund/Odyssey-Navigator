@@ -419,11 +419,21 @@ export default function ChildModeScreen() {
       {/* Media area */}
       <View style={styles.mediaContainer}>
         {step.mediaUrl ? (
-          <Image
-            source={{ uri: step.mediaUrl }}
-            style={styles.stepMedia}
-            contentFit="cover"
-          />
+          <View style={{ flex: 1, position: "relative" }}>
+            <Image
+              source={{ uri: step.mediaUrl }}
+              style={styles.stepMedia}
+              contentFit="cover"
+            />
+            {step.mediaType === "video" && (
+              <View style={styles.videoOverlay}>
+                <View style={styles.videoPlayIcon}>
+                  <Ionicons name="play" size={28} color="#fff" />
+                </View>
+                <Text style={styles.videoLabel}>Video</Text>
+              </View>
+            )}
+          </View>
         ) : (
           <View style={styles.stepMediaPlaceholder}>
             <Animated.View style={{ transform: [{ scale: bounceAnim }] }}>
@@ -704,6 +714,27 @@ const styles = StyleSheet.create({
     minHeight: 180,
   },
   stepMedia: { width: "100%", height: "100%" },
+  videoOverlay: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  videoPlayIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoLabel: { color: "#fff", fontSize: 15, fontWeight: "700" },
   stepMediaPlaceholder: {
     flex: 1,
     alignItems: "center",

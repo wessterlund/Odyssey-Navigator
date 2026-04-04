@@ -20,6 +20,23 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { CameraModal, CapturedMedia } from "@/components/CameraModal";
 
+async function uploadToServer(localUri: string, mimeType: string): Promise<string> {
+  const formData = new FormData();
+  if (Platform.OS === "web") {
+    const response = await fetch(localUri);
+    const blob = await response.blob();
+    const ext = mimeType.startsWith("video/") ? ".mp4" : ".jpg";
+    formData.append("file", blob, `pick${ext}`);
+  } else {
+    const ext = mimeType.startsWith("video/") ? ".mp4" : ".jpg";
+    (formData as any).append("file", { uri: localUri, name: `pick${ext}`, type: mimeType });
+  }
+  const res = await fetch(`${apiBase()}/upload`, { method: "POST", body: formData });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const data = await res.json();
+  return data.url as string;
+}
+
 export default function CreateAdventureScreen() {
   const colors = useColors();
   const router = useRouter();
@@ -41,6 +58,7 @@ export default function CreateAdventureScreen() {
 
   const [cameraVisible, setCameraVisible] = useState(false);
   const [cameraTargetStep, setCameraTargetStep] = useState<number | null>(null);
+  const [uploadingStep, setUploadingStep] = useState<number | null>(null);
 
   const generateAdventure = async () => {
     if (!currentLearner || !goal.trim()) {
@@ -150,12 +168,20 @@ export default function CreateAdventureScreen() {
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
+      const mediaType = (asset.type === "video" ? "video" : "image") as "image" | "video";
+      const mimeType = asset.mimeType || (mediaType === "video" ? "video/mp4" : "image/jpeg");
+
+      setUploadingStep(index);
+      let finalUri = asset.uri;
+      try {
+        finalUri = await uploadToServer(asset.uri, mimeType);
+      } catch {
+        // fall back to local URI; media still attaches, just won't persist across devices
+      }
+      setUploadingStep(null);
+
       const updated = [...steps];
-      updated[index] = {
-        ...updated[index],
-        mediaUrl: asset.uri,
-        mediaType: (asset.type === "video" ? "video" : "image") as "image" | "video",
-      };
+      updated[index] = { ...updated[index], mediaUrl: finalUri, mediaType };
       setSteps(updated);
     }
   };
@@ -342,7 +368,12 @@ export default function CreateAdventureScreen() {
               ) : null}
 
               {/* Media section */}
-              {step.mediaUrl ? (
+              {uploadingStep === index ? (
+                <View style={[styles.mediaUploadingRow, { borderColor: colors.border }]}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.mediaBtnText, { color: colors.mutedForeground }]}>Uploading…</Text>
+                </View>
+              ) : step.mediaUrl ? (
                 <View style={styles.mediaPreviewContainer}>
                   <Image
                     source={{ uri: step.mediaUrl }}
@@ -377,6 +408,7 @@ export default function CreateAdventureScreen() {
                   <TouchableOpacity
                     style={[styles.mediaBtn, { borderColor: colors.border }]}
                     onPress={() => pickImageForStep(index, "gallery")}
+                    disabled={uploadingStep !== null}
                   >
                     <Ionicons name="images-outline" size={18} color={colors.primary} />
                     <Text style={[styles.mediaBtnText, { color: colors.primary }]}>Upload</Text>
@@ -384,6 +416,7 @@ export default function CreateAdventureScreen() {
                   <TouchableOpacity
                     style={[styles.mediaBtn, { borderColor: colors.border, backgroundColor: colors.secondary }]}
                     onPress={() => openCamera(index)}
+                    disabled={uploadingStep !== null}
                   >
                     <Ionicons name="camera-outline" size={18} color={colors.primary} />
                     <Text style={[styles.mediaBtnText, { color: colors.primary }]}>Record</Text>
@@ -466,6 +499,16 @@ const styles = StyleSheet.create({
   mediaSuggestion: { fontSize: 12, fontStyle: "italic", lineHeight: 17 },
   tipBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 10, borderRadius: 8 },
   tipText: { fontSize: 13, flex: 1, lineHeight: 18 },
+  mediaUploadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 12,
+  },
   mediaButtonsRow: { flexDirection: "row", gap: 10 },
   mediaBtn: {
     flex: 1,

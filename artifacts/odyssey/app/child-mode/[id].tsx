@@ -162,49 +162,60 @@ export default function ChildModeScreen() {
     setCompleting(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    await earnCoins(adventure.coinsPerStep, "step", `Step ${currentStepIndex + 1}: ${step.instruction.slice(0, 40)}`);
-    await trackPerformance(step.id, true);
-    setTotalEarned((prev) => prev + adventure.coinsPerStep);
-    setStepCoinsEarned((prev) => prev + adventure.coinsPerStep);
-    animateCoin();
+    try {
+      await earnCoins(adventure.coinsPerStep, "step", `Step ${currentStepIndex + 1}: ${step.instruction.slice(0, 40)}`);
+      await trackPerformance(step.id, true);
+      setTotalEarned((prev) => prev + adventure.coinsPerStep);
+      setStepCoinsEarned((prev) => prev + adventure.coinsPerStep);
+      animateCoin();
 
-    const nextIndex = currentStepIndex + 1;
-    if (nextIndex >= adventure.steps.length) {
-      await earnCoins(adventure.completionBonus, "completion", `Completed: ${adventure.title}`);
-      setTotalEarned((prev) => prev + adventure.completionBonus);
-      setBonusEarned(adventure.completionBonus);
-      await fetch(`${apiBase()}/adventures/${adventure.id}/complete`, { method: "PUT" });
-      if (currentLearner) await refreshAll(currentLearner.id);
-      setState("complete");
-    } else {
-      setTimeout(() => {
-        setCurrentStepIndex(nextIndex);
-        setAttempts(1);
-        setStartTime(Date.now());
-        setCopilotTip(null);
-        setShowCopilot(false);
-        setState("encourage");
-      }, 300);
+      const nextIndex = currentStepIndex + 1;
+      if (nextIndex >= adventure.steps.length) {
+        await earnCoins(adventure.completionBonus, "completion", `Completed: ${adventure.title}`);
+        setTotalEarned((prev) => prev + adventure.completionBonus);
+        setBonusEarned(adventure.completionBonus);
+        await fetch(`${apiBase()}/adventures/${adventure.id}/complete`, { method: "PUT" });
+        if (currentLearner) await refreshAll(currentLearner.id);
+        setState("complete");
+        setCompleting(false);
+      } else {
+        setTimeout(() => {
+          setCurrentStepIndex(nextIndex);
+          setAttempts(1);
+          setStartTime(Date.now());
+          setCopilotTip(null);
+          setShowCopilot(false);
+          setState("encourage");
+          setCompleting(false);
+        }, 300);
+      }
+    } catch {
+      setCompleting(false);
     }
-    setCompleting(false);
   };
 
   const handleStepSkip = async () => {
     if (!adventure || completing) return;
     const step = adventure.steps[currentStepIndex];
+    setCompleting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await trackPerformance(step.id, false);
-    const nextIndex = currentStepIndex + 1;
-    if (nextIndex >= adventure.steps.length) {
-      if (currentLearner) await refreshAll(currentLearner.id);
-      setState("complete");
-    } else {
-      setCurrentStepIndex(nextIndex);
-      setAttempts(1);
-      setStartTime(Date.now());
-      setCopilotTip(null);
-      setShowCopilot(false);
-      setState("retry");
+    try {
+      await trackPerformance(step.id, false);
+      const nextIndex = currentStepIndex + 1;
+      if (nextIndex >= adventure.steps.length) {
+        await fetch(`${apiBase()}/adventures/${adventure.id}/complete`, { method: "PUT" });
+        if (currentLearner) await refreshAll(currentLearner.id);
+        setState("complete");
+      } else {
+        setCurrentStepIndex(nextIndex);
+        setAttempts(1);
+        setStartTime(Date.now());
+        setCopilotTip(null);
+        setShowCopilot(false);
+        setState("retry");
+      }
+    } finally {
+      setCompleting(false);
     }
   };
 

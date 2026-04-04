@@ -198,11 +198,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const restoreCurrentLearner = async () => {
       const storedId = await AsyncStorage.getItem("currentLearnerId");
-      if (storedId && learners.length > 0) {
-        const found = learners.find((l) => String(l.id) === storedId);
-        if (found) {
-          setCurrentLearnerState(found);
-          refreshAll(found.id);
+      if (learners.length > 0) {
+        const found = storedId ? learners.find((l) => String(l.id) === storedId) : null;
+        const learner = found ?? learners[0];
+        if (learner) {
+          setCurrentLearnerState(learner);
+          refreshAll(learner.id);
         }
       }
     };

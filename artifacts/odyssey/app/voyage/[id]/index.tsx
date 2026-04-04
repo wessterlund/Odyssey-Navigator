@@ -14,7 +14,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
-import { apiBase } from "@/contexts/AppContext";
+import { apiBase, useApp } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
 interface VoyageAdventure {
@@ -44,6 +44,7 @@ interface VoyageLog {
 interface VoyagePath {
   id: number;
   learnerId: number;
+  learnerName?: string;
   title: string;
   description?: string;
   status: "draft" | "active" | "completed";
@@ -63,6 +64,7 @@ export default function VoyagePathScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { learners } = useApp();
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -177,6 +179,17 @@ export default function VoyagePathScreen() {
             <Text style={styles.statusText}>{statusLabel[voyage.status]}</Text>
           </View>
 
+          {(() => {
+            const learner = learners.find((l) => l.id === voyage.learnerId);
+            if (learner) {
+              return (
+                <Text style={styles.bannerLearner}>
+                  {learner.name.split(" ")[0]}'s Voyage Path
+                </Text>
+              );
+            }
+            return null;
+          })()}
           <Text style={styles.bannerTitle}>{voyage.title}</Text>
 
           <View style={styles.bannerMeta}>
@@ -230,9 +243,23 @@ export default function VoyagePathScreen() {
 
           {/* Treasure Islands (Adventures) */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-              🏝️ Treasure Islands
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+                🏝️ Treasure Islands
+              </Text>
+              {voyage.status !== "completed" && (
+                <TouchableOpacity
+                  style={[styles.addTaskBtn, { backgroundColor: colors.primary + "18" }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/voyage/${id}/add-adventure`);
+                  }}
+                >
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={[styles.addTaskBtnText, { color: colors.primary }]}>Add task</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {voyage.adventures.length === 0 ? (
               <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Ionicons name="map-outline" size={32} color={colors.mutedForeground} />
@@ -465,6 +492,7 @@ const styles = StyleSheet.create({
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  bannerLearner: { color: "rgba(255,255,255,0.75)", fontSize: 14, fontWeight: "600" },
   bannerTitle: { color: "#fff", fontSize: 26, fontWeight: "800", lineHeight: 32 },
   bannerMeta: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
   bannerMetaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -480,7 +508,10 @@ const styles = StyleSheet.create({
   progressTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
   progressFill: { height: 6 },
   section: { gap: 10 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { fontSize: 18, fontWeight: "700" },
+  addTaskBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  addTaskBtnText: { fontSize: 13, fontWeight: "700" },
   emptyCard: {
     borderRadius: 14,
     borderWidth: 1,

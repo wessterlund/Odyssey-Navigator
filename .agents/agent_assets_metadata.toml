@@ -6,3 +6,21 @@ id = "v7dSH2eeVALJ-JauTZ_K1"
 uri = "file://artifacts/odyssey/assets/images/icon.png"
 type = "image"
 title = "odyssey app icon"
+
+[[generated]]
+id = "0YDhAf5ApkH5SBlYs6Y8N"
+uri = "file://artifacts/odyssey/assets/images/octopus.png"
+type = "image"
+title = "odyssey octopus mascot"
+
+[[generated]]
+id = "DLAKd0AQyX7gSYMYoRUyM"
+uri = "file://artifacts/odyssey/assets/images/octopus-celebrate.png"
+type = "image"
+title = "odyssey octopus celebrate"
+
+[[generated]]
+id = "xFcucR-5qOBpb2sos6QSr"
+uri = "file://artifacts/odyssey/assets/images/octopus-encourage.png"
+type = "image"
+title = "odyssey octopus encourage"

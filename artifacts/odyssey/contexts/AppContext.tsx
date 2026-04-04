@@ -30,6 +30,8 @@ export interface Step {
   adventureId?: number;
   instruction: string;
   mediaUrl?: string;
+  mediaType?: "image" | "video";
+  thumbnail?: string;
   tip?: string;
   order?: number;
   mediaSuggestion?: string;
@@ -42,6 +44,9 @@ export interface Adventure {
   description?: string;
   coinsPerStep: number;
   completionBonus: number;
+  isTemplate?: boolean;
+  usageCount?: number;
+  lastCompletedAt?: string;
   steps: Step[];
 }
 

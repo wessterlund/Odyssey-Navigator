@@ -13,9 +13,11 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase, Step } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 
 export default function CreateAdventureScreen() {
   const colors = useColors();
@@ -26,7 +28,6 @@ export default function CreateAdventureScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const [mode, setMode] = useState<"manual" | "ai" | null>(null);
   const [goal, setGoal] = useState("");
   const [generating, setGenerating] = useState(false);
 
@@ -60,9 +61,8 @@ export default function CreateAdventureScreen() {
         tip: s.tip || "",
         mediaSuggestion: s.mediaSuggestion || "",
       })));
-      setMode("ai");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
+    } catch {
       Alert.alert("Error", "AI generation failed. Please try again.");
     }
     setGenerating(false);
@@ -95,7 +95,7 @@ export default function CreateAdventureScreen() {
       await loadAdventures(currentLearner.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (e) {
+    } catch {
       Alert.alert("Error", "Failed to save adventure.");
     }
     setSaving(false);
@@ -114,6 +114,52 @@ export default function CreateAdventureScreen() {
   const removeStep = (index: number) => {
     if (steps.length <= 1) return;
     setSteps(steps.filter((_, i) => i !== index));
+  };
+
+  const pickImageForStep = async (index: number, source: "gallery" | "camera") => {
+    let result: ImagePicker.ImagePickerResult;
+    if (source === "camera") {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Camera permission is required.");
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Photo library permission is required.");
+        return;
+      }
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images", "videos"],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+    }
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const updated = [...steps];
+      updated[index] = {
+        ...updated[index],
+        mediaUrl: asset.uri,
+        mediaType: (asset.type === "video" ? "video" : "image") as "image" | "video",
+      };
+      setSteps(updated);
+    }
+  };
+
+  const removeMediaFromStep = (index: number) => {
+    const updated = [...steps];
+    updated[index] = { ...updated[index], mediaUrl: undefined, mediaType: undefined };
+    setSteps(updated);
   };
 
   if (!currentLearner) {
@@ -180,14 +226,12 @@ export default function CreateAdventureScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Divider */}
         <View style={styles.divider}>
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>or create manually</Text>
           <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
-        {/* Title */}
         <View style={styles.field}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Title *</Text>
           <TextInput
@@ -199,7 +243,6 @@ export default function CreateAdventureScreen() {
           />
         </View>
 
-        {/* Description */}
         <View style={styles.field}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Description</Text>
           <TextInput
@@ -213,7 +256,6 @@ export default function CreateAdventureScreen() {
           />
         </View>
 
-        {/* Coin Settings */}
         <View style={styles.coinRow}>
           <View style={[styles.field, { flex: 1 }]}>
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Coins / Step</Text>
@@ -235,7 +277,6 @@ export default function CreateAdventureScreen() {
           </View>
         </View>
 
-        {/* Steps */}
         <View style={styles.stepsSection}>
           <Text style={[styles.stepsTitle, { color: colors.foreground }]}>Steps</Text>
           {steps.map((step, index) => (
@@ -250,6 +291,7 @@ export default function CreateAdventureScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+
               <TextInput
                 style={[styles.stepInput, { borderColor: colors.border, backgroundColor: colors.background, color: colors.foreground }]}
                 value={step.instruction}
@@ -258,17 +300,63 @@ export default function CreateAdventureScreen() {
                 placeholderTextColor={colors.mutedForeground}
                 multiline
               />
+
               {step.mediaSuggestion ? (
                 <Text style={[styles.mediaSuggestion, { color: colors.mutedForeground }]}>
-                  Image idea: {step.mediaSuggestion}
+                  💡 Image idea: {step.mediaSuggestion}
                 </Text>
               ) : null}
+
               {step.tip ? (
                 <View style={[styles.tipBox, { backgroundColor: colors.secondary }]}>
                   <Ionicons name="information-circle" size={15} color={colors.primary} />
                   <Text style={[styles.tipText, { color: colors.primary }]}>{step.tip}</Text>
                 </View>
               ) : null}
+
+              {/* Media section */}
+              {step.mediaUrl ? (
+                <View style={styles.mediaPreviewContainer}>
+                  <Image
+                    source={{ uri: step.mediaUrl }}
+                    style={styles.mediaPreview}
+                    contentFit="cover"
+                  />
+                  <View style={styles.mediaPreviewOverlay}>
+                    <TouchableOpacity
+                      style={styles.mediaReplaceBtn}
+                      onPress={() => {
+                        Alert.alert("Replace Media", "Choose source:", [
+                          { text: "Gallery", onPress: () => pickImageForStep(index, "gallery") },
+                          { text: "Camera", onPress: () => pickImageForStep(index, "camera") },
+                          { text: "Remove", style: "destructive", onPress: () => removeMediaFromStep(index) },
+                          { text: "Cancel", style: "cancel" },
+                        ]);
+                      }}
+                    >
+                      <Ionicons name="camera" size={16} color="#fff" />
+                      <Text style={styles.mediaReplaceBtnText}>Replace</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.mediaButtonsRow}>
+                  <TouchableOpacity
+                    style={[styles.mediaBtn, { borderColor: colors.border }]}
+                    onPress={() => pickImageForStep(index, "gallery")}
+                  >
+                    <Ionicons name="images-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.mediaBtnText, { color: colors.primary }]}>Upload</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.mediaBtn, { borderColor: colors.border }]}
+                    onPress={() => pickImageForStep(index, "camera")}
+                  >
+                    <Ionicons name="camera-outline" size={18} color={colors.primary} />
+                    <Text style={[styles.mediaBtnText, { color: colors.primary }]}>Record</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))}
           <TouchableOpacity
@@ -328,14 +416,67 @@ const styles = StyleSheet.create({
   coinRow: { flexDirection: "row", gap: 12 },
   stepsSection: { gap: 12 },
   stepsTitle: { fontSize: 17, fontWeight: "700" },
-  stepCard: { borderRadius: 14, padding: 14, gap: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
+  stepCard: {
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   stepHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   stepNumText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   stepInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 14, minHeight: 60, textAlignVertical: "top" },
-  mediaSuggestion: { fontSize: 12, fontStyle: "italic" },
+  mediaSuggestion: { fontSize: 12, fontStyle: "italic", lineHeight: 17 },
   tipBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 10, borderRadius: 8 },
   tipText: { fontSize: 13, flex: 1, lineHeight: 18 },
-  addStepBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderStyle: "dashed" },
+  mediaButtonsRow: { flexDirection: "row", gap: 10 },
+  mediaBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  mediaBtnText: { fontSize: 14, fontWeight: "600" },
+  mediaPreviewContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
+    height: 160,
+    position: "relative",
+  },
+  mediaPreview: { width: "100%", height: "100%" },
+  mediaPreviewOverlay: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+  },
+  mediaReplaceBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  mediaReplaceBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  addStepBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: "dashed",
+  },
   addStepText: { fontSize: 15, fontWeight: "600" },
 });

@@ -36,6 +36,9 @@ export const adventuresTable = pgTable("adventures", {
   description: text("description"),
   coinsPerStep: integer("coins_per_step").default(2).notNull(),
   completionBonus: integer("completion_bonus").default(5).notNull(),
+  isTemplate: boolean("is_template").default(false).notNull(),
+  usageCount: integer("usage_count").default(0).notNull(),
+  lastCompletedAt: timestamp("last_completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -46,6 +49,8 @@ export const stepsTable = pgTable("steps", {
     .references(() => adventuresTable.id, { onDelete: "cascade" }),
   instruction: text("instruction").notNull(),
   mediaUrl: text("media_url"),
+  mediaType: text("media_type").$type<"image" | "video">(),
+  thumbnail: text("thumbnail"),
   tip: text("tip"),
   order: integer("order").notNull(),
 });

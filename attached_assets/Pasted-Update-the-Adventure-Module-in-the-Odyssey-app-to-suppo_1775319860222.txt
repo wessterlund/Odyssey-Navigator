@@ -1,0 +1,254 @@
+Update the **Adventure Module** in the Odyssey app to support:
+
+1. Media creation (upload + real-time capture)
+2. Post-completion editing and reuse
+3. A fully separate **Child Mode UI** (based on provided designs)
+4. A gamified reward and feedback experience
+
+---
+
+# 🧩 1. MEDIA HANDLING (CRITICAL FEATURE)
+
+Each Step in an Adventure must support:
+
+## Options:
+
+### A. Upload Existing Media
+
+* Upload image or video from device
+* Store URL in database (Supabase storage or backend)
+
+### B. Record in Real-Time
+
+* Use device camera (getUserMedia API)
+* Allow:
+
+  * Record video
+  * Capture photo
+* Save media immediately and attach to step
+
+---
+
+## Step Model Update
+
+Each step must include:
+
+* instruction
+* mediaType ("image" | "video")
+* mediaUrl
+* thumbnail (optional)
+
+---
+
+## UI (Builder)
+
+Each step card must show:
+
+* Media preview
+* Buttons:
+
+  * “Upload”
+  * “Record”
+  * “Replace”
+
+---
+
+# 🔁 2. ADVENTURE LIFECYCLE
+
+---
+
+## After Adventure Completion
+
+Allow:
+
+### A. Edit Adventure
+
+* Modify steps
+* Replace media
+* Adjust sequence
+
+### B. Reuse Adventure
+
+* Duplicate adventure
+* Save as new version
+
+---
+
+## Database Requirement
+
+Add:
+
+* isTemplate (boolean)
+* lastCompletedAt
+* usageCount
+
+---
+
+# 🧒 3. CHILD MODE (SEPARATE EXPERIENCE)
+
+Create a completely separate UI mode for children.
+
+This MUST NOT look like the parent UI.
+
+Follow the attached design:
+
+---
+
+## Visual Style
+
+* Fullscreen
+* Ocean/soft gradient background
+* Friendly character (octopus guide)
+* Large rounded cards
+* Minimal text
+* High contrast
+* No clutter
+
+---
+
+## Entry Screen
+
+* Greeting:
+  “Hi [Child Name]”
+* Show available adventures as cards
+* Each card:
+
+  * Image
+  * Title
+  * Coins reward
+
+---
+
+## Start Screen
+
+* Character says:
+  “It’s time for an adventure!”
+* Big CTA: “Let’s go!”
+
+---
+
+## Step Screen
+
+* Show:
+
+  * Media (large)
+  * Instruction (simple)
+* Buttons:
+
+  * Done
+  * Skip (optional)
+
+---
+
+## Completion Screen
+
+* Celebration animation
+* Message:
+  “Woohoo! Great job!”
+* Show coins earned
+* Button: “Redeem reward”
+
+---
+
+## Encouragement Screen (Mid)
+
+After each step:
+
+* “Good job! Let’s do the next step”
+
+---
+
+## Retry Screen (Failure)
+
+* “You can do it! Let’s try again”
+
+---
+
+# 🎁 4. REWARD FEEDBACK SYSTEM
+
+When coins are earned:
+
+* Animate coins (floating + increment)
+* Show total coins
+
+When reward is redeemed:
+
+* Full celebration screen
+* “Reward Redeemed 🎉”
+
+---
+
+# 🧠 5. STATE MANAGEMENT (IMPORTANT)
+
+You must separate:
+
+### Parent Mode
+
+* Builder
+* Editing
+* Management
+
+### Child Mode
+
+* Execution only
+* No editing controls
+
+---
+
+## Zustand Store Example
+
+* currentMode: "parent" | "child"
+* activeAdventure
+* currentStepIndex
+* coinsEarnedSession
+
+---
+
+# 🔄 6. EXECUTION LOGIC
+
+On step completion:
+
+1. Add coins to wallet
+2. Show animation
+3. Save performance data
+4. Move to next step
+
+---
+
+# 📊 7. PERFORMANCE TRACKING
+
+Track:
+
+* step completion time
+* attempts
+* success/failure
+
+Store in database
+
+---
+
+# ⚠️ IMPORTANT RULES
+
+* Child mode must be distraction-free
+* No small buttons or dense UI
+* Always show visual feedback
+* Media must load fast (optimize)
+
+---
+
+# 🚀 FINAL GOAL
+
+Deliver a system where:
+
+* Parent creates an adventure with media (upload or record)
+* Child experiences a fully immersive, gamified flow
+* Coins are earned and visualized
+* Rewards feel exciting
+* Parent can reuse and improve adventures over time
+
+This must feel like:
+
+* Parent → control panel
+* Child → fun, guided experience
+
+NOT the same UI for both.

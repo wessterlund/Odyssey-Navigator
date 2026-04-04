@@ -29,12 +29,12 @@ function getInitials(name: string) {
 }
 
 const PARENT_CATEGORIES = [
-  { label: "Adventures", emoji: "🗺️", color: "#EBF3FF", route: "/(tabs)/adventures" as const },
-  { label: "Rewards",    emoji: "🎁", color: "#FEF3C7", route: "/(tabs)/rewards" as const },
-  { label: "Mood Captain", emoji: "😊", color: "#FDF4FF", route: null },
-  { label: "Learning",  emoji: "📚", color: "#F0FFF4", route: null },
-  { label: "Community", emoji: "👥", color: "#FFF7ED", route: null },
-  { label: "Scheduler", emoji: "📅", color: "#EFF6FF", route: "/scheduler" as const },
+  { label: "Adventures",  emoji: "🗺️", illBg: "#E4EDFF", route: "/(tabs)/adventures" as const },
+  { label: "Rewards",     emoji: "🎁", illBg: "#FDEEE6", route: "/(tabs)/rewards" as const },
+  { label: "Mood Captain",emoji: "😊", illBg: "#FDF4FF", route: null },
+  { label: "Learning",    emoji: "📚", illBg: "#F0FFF4", route: null },
+  { label: "Community",   emoji: "👥", illBg: "#FFF7ED", route: null },
+  { label: "Scheduler",   emoji: "📅", illBg: "#EFF6FF", route: "/scheduler" as const },
 ];
 
 const TODAY_SCHEDULE = [
@@ -156,21 +156,25 @@ export default function ParentHome({ topPadding }: { topPadding?: number }) {
         {PARENT_CATEGORIES.map((cat) => (
           <TouchableOpacity
             key={cat.label}
-            style={[styles.catTile, { backgroundColor: cat.color }]}
+            style={styles.catCard}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (cat.route) router.push(cat.route as any);
             }}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            {cat.label === "Adventures" ? (
-              <Image source={ADVENTURE_ICON} style={styles.catImg} resizeMode="contain" />
-            ) : cat.label === "Rewards" ? (
-              <Image source={REWARDS_ICON} style={styles.catImg} resizeMode="contain" />
-            ) : (
-              <Text style={styles.catEmoji}>{cat.emoji}</Text>
-            )}
-            <Text style={[styles.catLabel, { color: colors.foreground }]}>{cat.label}</Text>
+            <View style={[styles.catCardIll, { backgroundColor: cat.illBg }]}>
+              {cat.label === "Adventures" ? (
+                <Image source={ADVENTURE_ICON} style={styles.catCardImg} resizeMode="contain" />
+              ) : cat.label === "Rewards" ? (
+                <Image source={REWARDS_ICON} style={styles.catCardImg} resizeMode="contain" />
+              ) : (
+                <Text style={styles.catEmoji}>{cat.emoji}</Text>
+              )}
+            </View>
+            <View style={styles.catCardLabel}>
+              <Text style={[styles.catCardText, { color: colors.foreground }]}>{cat.label}</Text>
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -286,12 +290,36 @@ const styles = StyleSheet.create({
   heroBubble1: { position: "absolute", width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", top: -10, right: 0 },
   heroBubble2: { position: "absolute", width: 20, height: 20, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.12)", bottom: 0, left: 5 },
 
-  /* 6-tile grid */
+  /* 6-tile grid — matches TeacherHome card layout */
   catGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  catTile: { width: "30.5%", borderRadius: 16, paddingVertical: 16, alignItems: "center", gap: 6 },
-  catEmoji: { fontSize: 28 },
-  catImg: { width: 48, height: 41 },
-  catLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+  catCard: {
+    width: "30.5%",
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  catCardIll: {
+    paddingTop: 16,
+    paddingBottom: 12,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 96,
+  },
+  catCardImg: { width: 80, height: 70 },
+  catEmoji: { fontSize: 32 },
+  catCardLabel: {
+    backgroundColor: "#fff",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    alignItems: "center",
+  },
+  catCardText: { fontSize: 11, fontWeight: "700", textAlign: "center" },
 
   /* Schedule */
   scheduleSection: { gap: 12 },

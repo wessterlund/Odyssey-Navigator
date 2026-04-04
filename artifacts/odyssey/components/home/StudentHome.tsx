@@ -18,7 +18,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
-const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
+const ADVENTURE_ICON  = require("@/assets/images/adventure-icon.png");
+const OCTOPUS_MASCOT  = require("@/assets/images/octopus-mascot.png");
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -129,7 +130,7 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
 
         {/* ── Mascot speech bubble card ────────────── */}
         <View style={styles.mascotCard}>
-          <Text style={styles.mascotEmoji}>🐙</Text>
+          <Image source={OCTOPUS_MASCOT} style={styles.mascotImg} resizeMode="contain" />
           <View style={styles.speechBubble}>
             <View style={styles.speechTail} />
             <Text style={styles.speechText}>These are your adventures today!</Text>
@@ -263,6 +264,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   mascotEmoji: { fontSize: 52 },
+  mascotImg: { width: 64, height: 64 },
   speechBubble: {
     flex: 1,
     backgroundColor: OCEAN_CARD,

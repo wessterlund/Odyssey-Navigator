@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 const TEACHER_HERO = require("@/assets/images/strawberry-hero.png");
 const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
 const REWARDS_ICON = require("@/assets/images/rewards-icon.png");
+const VOYAGE_ICON  = require("@/assets/images/voyage-icon.png");
 
 const TIPS = [
   {
@@ -171,7 +172,7 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voyage/create"); }}
           activeOpacity={0.8}
         >
-          <Text style={styles.catEmoji}>🧭</Text>
+          <Image source={VOYAGE_ICON} style={styles.catImg} resizeMode="contain" />
           <Text style={[styles.catLabel, { color: colors.foreground }]}>Voyage Path</Text>
         </TouchableOpacity>
       </View>

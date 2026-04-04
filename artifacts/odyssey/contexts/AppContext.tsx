@@ -101,6 +101,8 @@ interface AppContextType {
   loadRewards: (learnerId: number) => Promise<void>;
   loadTransactions: (learnerId: number) => Promise<void>;
   refreshAll: (learnerId: number) => Promise<void>;
+  role: "teacher" | "parent";
+  setRole: (role: "teacher" | "parent") => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -113,6 +115,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [role, setRoleState] = useState<"teacher" | "parent">("teacher");
+
+  const setRole = useCallback(async (r: "teacher" | "parent") => {
+    setRoleState(r);
+    await AsyncStorage.setItem("appRole", r);
+  }, []);
 
   const apiGet = async (path: string) => {
     const res = await fetch(`${BASE_URL}/api${path}`);
@@ -191,6 +199,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const init = async () => {
       await loadLearners();
+      const storedRole = await AsyncStorage.getItem("appRole");
+      if (storedRole === "teacher" || storedRole === "parent") {
+        setRoleState(storedRole);
+      }
     };
     init();
   }, []);
@@ -227,6 +239,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loadRewards,
         loadTransactions,
         refreshAll,
+        role,
+        setRole,
       }}
     >
       {children}

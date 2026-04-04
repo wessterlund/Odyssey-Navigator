@@ -17,7 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
-const TEACHER_HERO = require("@/assets/images/teacher-hero.png");
+const TEACHER_HERO = require("@/assets/images/strawberry-hero.png");
 
 const TIPS = [
   {
@@ -132,7 +132,7 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
         {/* Right: illustration + CTA button */}
         <View style={styles.heroRight}>
           <View style={styles.heroImgWrap}>
-            <Image source={TEACHER_HERO} style={styles.heroImg} resizeMode="cover" />
+            <Image source={TEACHER_HERO} style={styles.heroImg} resizeMode="contain" />
           </View>
           <TouchableOpacity
             style={styles.heroBtn}
@@ -278,15 +278,12 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   heroImgWrap: {
-    width: 160,
-    height: 90,
-    overflow: "hidden",
+    width: 148,
+    height: 118,
   },
   heroImg: {
-    width: 300,
-    height: 172,
-    marginLeft: -95,
-    marginTop: -22,
+    width: 148,
+    height: 118,
   },
   heroBtn: {
     backgroundColor: "#fff",

@@ -22,14 +22,6 @@ const H_PAD = 20;
 const CARD_GAP = 12;
 const CARD_WIDTH = (SCREEN_W - H_PAD * 2 - CARD_GAP) / 2;
 
-const ADVENTURE_COLORS = [
-  { bg: "#FEF3C7", text: "#92400E" },
-  { bg: "#CFFAFE", text: "#164E63" },
-  { bg: "#EDE9FE", text: "#4C1D95" },
-  { bg: "#DCFCE7", text: "#14532D" },
-  { bg: "#FCE7F3", text: "#831843" },
-  { bg: "#FEE2E2", text: "#7F1D1D" },
-];
 
 type CommunityTemplate = {
   id: number;
@@ -60,32 +52,37 @@ function SectionHeader({
   );
 }
 
-function AdventureColorCard({
+function AdventureCard({
   adventure,
-  index,
   colors,
   onPress,
 }: {
   adventure: { id: number; title: string; steps?: { id: number }[] };
-  index: number;
   colors: ReturnType<typeof useColors>;
   onPress: () => void;
 }) {
-  const palette = ADVENTURE_COLORS[index % ADVENTURE_COLORS.length];
   const stepCount = adventure.steps?.length ?? 0;
 
   return (
     <TouchableOpacity
-      style={[styles.colorCard, { backgroundColor: palette.bg }]}
+      style={[styles.advCard, { backgroundColor: colors.card }]}
       onPress={onPress}
-      activeOpacity={0.82}
+      activeOpacity={0.88}
     >
-      <Text style={[styles.colorCardTitle, { color: palette.text }]} numberOfLines={3}>
-        {adventure.title}
-      </Text>
-      <Text style={[styles.colorCardSub, { color: palette.text }]}>
-        {stepCount} {stepCount === 1 ? "Step" : "Steps"}
-      </Text>
+      <View style={styles.advCardImage}>
+        <Ionicons name="map" size={32} color={colors.primary} />
+      </View>
+      <View style={styles.advCardBody}>
+        <Text style={[styles.advCardName, { color: colors.foreground }]} numberOfLines={2}>
+          {adventure.title}
+        </Text>
+        <View style={styles.advStepRow}>
+          <View style={styles.advStepBadge}>
+            <Ionicons name="footsteps-outline" size={12} color={colors.primary} />
+          </View>
+          <Text style={[styles.advStepCount, { color: colors.foreground }]}>{stepCount}</Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -214,11 +211,10 @@ export default function AdventuresScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {activeAdventures.map((adv, i) => (
-              <AdventureColorCard
+            {activeAdventures.map((adv) => (
+              <AdventureCard
                 key={adv.id}
                 adventure={adv}
-                index={i}
                 colors={colors}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -354,16 +350,36 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 
-  /* Colored adventure card */
-  colorCard: {
+  /* Adventure card — mirrors rewards card layout, blue palette */
+  advCard: {
     width: CARD_WIDTH,
-    height: CARD_WIDTH,
     borderRadius: 14,
-    padding: 14,
-    justifyContent: "space-between",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  colorCardTitle: { fontSize: 16, fontWeight: "700", lineHeight: 22 },
-  colorCardSub: { fontSize: 13, fontWeight: "500", marginTop: 8 },
+  advCardImage: {
+    width: "100%",
+    height: 110,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  advCardBody: { padding: 10, gap: 4 },
+  advCardName: { fontSize: 14, fontWeight: "700", lineHeight: 19 },
+  advStepRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  advStepBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  advStepCount: { fontSize: 14, fontWeight: "700" },
 
   /* Photo card (drafts / templates) */
   photoCard: {

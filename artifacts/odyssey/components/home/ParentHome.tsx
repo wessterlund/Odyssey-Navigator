@@ -29,7 +29,7 @@ const PARENT_CATEGORIES = [
   { label: "Mood Captain", emoji: "😊", color: "#FDF4FF", route: null },
   { label: "Learning",  emoji: "📚", color: "#F0FFF4", route: null },
   { label: "Community", emoji: "👥", color: "#FFF7ED", route: null },
-  { label: "Scheduler", emoji: "📅", color: "#EFF6FF", route: null },
+  { label: "Scheduler", emoji: "📅", color: "#EFF6FF", route: "/scheduler" as const },
 ];
 
 const TODAY_SCHEDULE = [

@@ -330,7 +330,8 @@ export default function ChildModeScreen() {
   }
 
   if (state === "complete") {
-    const finalCoins = totalEarned;
+    const stepCoins = adventure.steps.length * adventure.coinsPerStep;
+    const bonusCoins = adventure.completionBonus;
     return (
       <LinearGradient colors={CELEBRATE_BG} style={[styles.fullscreen, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <Animated.View style={[styles.centerContent, { transform: [{ scale: bounceAnim }] }]}>
@@ -343,23 +344,41 @@ export default function ChildModeScreen() {
         <View style={[styles.feedbackCard, styles.celebrateCard]}>
           <Text style={styles.celebrateWoohoo}>Woohoo!</Text>
           <Text style={styles.celebrateTitle}>Great job,{"\n"}{currentLearner?.name ?? "Champion"}!</Text>
-          <Text style={styles.celebrateSub}>You've earned:</Text>
           <View style={styles.coinsBigRow}>
-            {Array.from({ length: Math.min(finalCoins, 8) }).map((_, i) => (
+            {Array.from({ length: Math.min(totalEarned, 8) }).map((_, i) => (
               <Text key={i} style={styles.coinEmojiBig}>🪙</Text>
             ))}
           </View>
-          <Text style={styles.coinsCount}>{finalCoins} coins!</Text>
+          {/* Coin breakdown */}
+          <View style={styles.breakdownCard}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Steps completed</Text>
+              <Text style={styles.breakdownCoins}>+{stepCoins} 🪙</Text>
+            </View>
+            <View style={styles.breakdownDivider} />
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Completion bonus</Text>
+              <Text style={styles.breakdownCoins}>+{bonusCoins} 🪙</Text>
+            </View>
+            <View style={styles.breakdownDivider} />
+            <View style={styles.breakdownRow}>
+              <Text style={[styles.breakdownLabel, { fontWeight: "900" }]}>Total earned</Text>
+              <Text style={[styles.breakdownCoins, { fontSize: 20 }]}>{totalEarned} 🪙</Text>
+            </View>
+          </View>
           <TouchableOpacity
-            style={[styles.nextBtn, { backgroundColor: "#F59E0B", marginTop: 8 }]}
+            style={[styles.nextBtn, { backgroundColor: "#F59E0B", marginTop: 4 }]}
             activeOpacity={0.85}
-            onPress={() => router.back()}
+            onPress={() => {
+              router.back();
+              setTimeout(() => router.push("/(tabs)/rewards"), 300);
+            }}
           >
             <Ionicons name="gift" size={20} color="#fff" />
             <Text style={styles.nextBtnText}>Redeem reward</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.back()} style={styles.doneLink}>
-            <Text style={styles.doneLinkText}>Done</Text>
+            <Text style={styles.doneLinkText}>Back to home</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -616,6 +635,22 @@ const styles = StyleSheet.create({
   nextBtnText: { fontSize: 20, fontWeight: "900", color: "#fff" },
   doneLink: { marginTop: 4, paddingVertical: 8 },
   doneLinkText: { fontSize: 16, color: "#6B93C0", fontWeight: "600" },
+  breakdownCard: {
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 16,
+    padding: 14,
+    width: "100%",
+    gap: 0,
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  breakdownLabel: { fontSize: 14, color: "#1E3A5F", fontWeight: "600" },
+  breakdownCoins: { fontSize: 15, fontWeight: "800", color: "#F59E0B" },
+  breakdownDivider: { height: 1, backgroundColor: "rgba(0,0,0,0.07)" },
   // Step state styles
   stepTopBar: {
     flexDirection: "row",

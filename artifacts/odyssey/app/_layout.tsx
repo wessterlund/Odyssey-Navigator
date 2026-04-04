@@ -29,6 +29,8 @@ function RootLayoutNav() {
       <Stack.Screen name="adventure/create" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="child-mode/index" options={{ headerShown: false }} />
       <Stack.Screen name="child-mode/[id]" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="reward/create" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="reward/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

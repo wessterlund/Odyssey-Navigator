@@ -140,10 +140,17 @@ export default function RewardDetailScreen() {
         style: "destructive",
         onPress: async () => {
           setDeleting(true);
-          await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
-          if (currentLearner) await loadRewards(currentLearner.id);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          router.back();
+          try {
+            const res = await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error(`Server error ${res.status}`);
+            if (currentLearner) await loadRewards(currentLearner.id);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            router.back();
+          } catch {
+            Alert.alert("Error", "Could not delete reward — please try again.");
+          } finally {
+            setDeleting(false);
+          }
         },
       },
     ]);

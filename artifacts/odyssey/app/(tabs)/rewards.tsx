@@ -137,17 +137,27 @@ export default function RewardsScreen() {
   };
 
   const deleteReward = (id: number, name: string) => {
-    Alert.alert("Delete Reward", `Delete "${name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
-          if (currentLearner) await loadRewards(currentLearner.id);
+    // Use setTimeout to let any active gesture (tap/long-press) fully settle
+    // before showing the Alert — prevents Android gesture handler swallowing it
+    setTimeout(() => {
+      Alert.alert("Delete Reward", `Delete "${name}"?`, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await fetch(`${apiBase()}/rewards/${id}`, { method: "DELETE" });
+              if (!res.ok) throw new Error(`Server error ${res.status}`);
+              if (currentLearner) await loadRewards(currentLearner.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            } catch {
+              Alert.alert("Error", "Could not delete reward — please try again.");
+            }
+          },
         },
-      },
-    ]);
+      ]);
+    }, 50);
   };
 
   if (!currentLearner) {
@@ -319,38 +329,50 @@ function RewardCard({
   const isRedeeming = redeemingId === reward.id;
 
   return (
-    <TouchableOpacity
-      style={[styles.contentCard, { backgroundColor: colors.card }]}
-      activeOpacity={0.88}
-      onPress={onPress}
-      onLongPress={onDelete}
-    >
-      {reward.imageUrl ? (
-        <Image
-          source={{ uri: reward.imageUrl }}
-          style={styles.contentCardImage}
-          contentFit="cover"
-        />
-      ) : (
-        <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]}>
-          <Ionicons name="gift" size={32} color={canAfford ? "#16A34A" : colors.primary} />
-        </View>
-      )}
-      <View style={styles.contentCardBody}>
-        <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>
-          {reward.name}
-        </Text>
-        <View style={styles.coinRow}>
-          <View style={[styles.coinBadge, { backgroundColor: "#FFF3E0" }]}>
-            <Ionicons name="star" size={12} color="#F59E0B" />
+    // Wrapper holds the card + the delete button, so the button is outside
+    // overflow:hidden and renders correctly above the card image
+    <View style={styles.rewardCardWrapper}>
+      <TouchableOpacity
+        style={[styles.contentCard, { backgroundColor: colors.card }]}
+        activeOpacity={0.88}
+        onPress={onPress}
+      >
+        {reward.imageUrl ? (
+          <Image
+            source={{ uri: reward.imageUrl }}
+            style={styles.contentCardImage}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]}>
+            <Ionicons name="gift" size={32} color={canAfford ? "#16A34A" : colors.primary} />
           </View>
-          <Text style={[styles.coinCount, { color: colors.foreground }]}>{reward.cost}</Text>
-        </View>
-        {reward.redeemed && (
-          <Text style={styles.redeemedLabel}>✓ Redeemed</Text>
         )}
-      </View>
-    </TouchableOpacity>
+        <View style={styles.contentCardBody}>
+          <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>
+            {reward.name}
+          </Text>
+          <View style={styles.coinRow}>
+            <View style={[styles.coinBadge, { backgroundColor: "#FFF3E0" }]}>
+              <Ionicons name="star" size={12} color="#F59E0B" />
+            </View>
+            <Text style={[styles.coinCount, { color: colors.foreground }]}>{reward.cost}</Text>
+          </View>
+          {reward.redeemed && (
+            <Text style={styles.redeemedLabel}>✓ Redeemed</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Trash button — sits outside overflow:hidden so it renders above the image */}
+      <TouchableOpacity
+        style={styles.cardDeleteBtn}
+        onPress={onDelete}
+        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+      >
+        <Ionicons name="trash-outline" size={13} color="#EF4444" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -437,6 +459,10 @@ const styles = StyleSheet.create({
     gap: CARD_GAP,
   },
 
+  rewardCardWrapper: {
+    width: CARD_WIDTH,
+    position: "relative",
+  },
   contentCard: {
     width: CARD_WIDTH,
     borderRadius: 14,
@@ -447,6 +473,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     backgroundColor: "#fff",
+  },
+  cardDeleteBtn: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    zIndex: 10,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   },
   contentCardImage: {
     width: "100%",

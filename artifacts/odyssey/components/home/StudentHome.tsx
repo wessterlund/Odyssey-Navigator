@@ -10,7 +10,6 @@ import {
   Dimensions,
   Animated,
   Image,
-  ImageBackground,
 } from "react-native";
 
 import { useRouter } from "expo-router";
@@ -19,9 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
-const ADVENTURE_ICON   = require("@/assets/images/adventure-icon.png");
-const OCTOPUS_MASCOT   = require("@/assets/images/octopus-mascot.png");
-const OCEAN_BG_IMAGE   = require("@/assets/images/ocean-bg.png");
+const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -94,11 +91,7 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
     <View style={styles.root}>
       {/* ── Full-bleed ocean background ──────────────── */}
       <View style={StyleSheet.absoluteFill}>
-        <ImageBackground
-          source={OCEAN_BG_IMAGE}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: OCEAN_BG }]} />
         {/* Decorative bubbles — static positions */}
         <Bubble x={-30} y={80}  size={120} opacity={0.6} />
         <Bubble x={SCREEN_W - 60} y={40}  size={90}  opacity={0.5} />
@@ -136,7 +129,7 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
 
         {/* ── Mascot speech bubble card ────────────── */}
         <View style={styles.mascotCard}>
-          <Image source={OCTOPUS_MASCOT} style={styles.mascotImg} resizeMode="contain" />
+          <Text style={styles.mascotEmoji}>🐙</Text>
           <View style={styles.speechBubble}>
             <View style={styles.speechTail} />
             <Text style={styles.speechText}>These are your adventures today!</Text>
@@ -182,7 +175,7 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
 
                 {/* Right: adventure card */}
                 <TouchableOpacity
-                  style={[styles.adventureCard, isCompleted && { opacity: 0.78 }]}
+                  style={[styles.adventureCard, isCompleted && { opacity: 0.75 }]}
                   activeOpacity={0.85}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -190,39 +183,29 @@ export default function StudentHome({ topPadding }: { topPadding?: number }) {
                   }}
                 >
                   <View style={styles.cardContent}>
-                    {/* Left: text */}
                     <View style={styles.cardText}>
-                      <Text style={styles.cardCategory}>{category}</Text>
-                      <Text style={styles.cardTitle} numberOfLines={3}>{adventure.title}</Text>
-                      {/* Two overlapping coin badges + count */}
+                      <Text style={[styles.cardCategory, { color: catColor }]}>{category}</Text>
+                      <Text style={styles.cardTitle} numberOfLines={2}>{adventure.title}</Text>
                       <View style={styles.cardCoins}>
-                        <View style={styles.coinStack}>
-                          <View style={[styles.coinBadge, { left: 0, zIndex: 2 }]}>
-                            <Text style={styles.coinBadgeTxt}>⭐</Text>
-                          </View>
-                          <View style={[styles.coinBadge, { left: 14, zIndex: 1 }]}>
-                            <Text style={styles.coinBadgeTxt}>⭐</Text>
-                          </View>
-                        </View>
+                        <Text style={styles.coinIconSmall}>🪙</Text>
                         <Text style={styles.cardCoinText}>{adventure.coinsPerStep ?? 25}</Text>
                       </View>
                     </View>
-
-                    {/* Right: large circular thumbnail */}
-                    <View style={styles.cardThumbWrap}>
+                    {/* Image thumbnail */}
+                    <View style={[styles.cardThumb, { backgroundColor: placeholderBg }]}>
                       {adventure.steps?.[0]?.mediaUrl ? (
-                        <Image
-                          source={{ uri: adventure.steps[0].mediaUrl }}
-                          style={styles.cardThumbCircle}
-                          resizeMode="cover"
-                        />
+                        <View style={[StyleSheet.absoluteFill, { borderRadius: 14 }]} />
                       ) : (
-                        <View style={[styles.cardThumbCircle, { backgroundColor: placeholderBg, alignItems: "center", justifyContent: "center" }]}>
-                          <Image source={ADVENTURE_ICON} style={styles.cardThumbFallback} resizeMode="contain" />
-                        </View>
+                        <Image source={ADVENTURE_ICON} style={styles.cardThumbImg} resizeMode="contain" />
                       )}
                     </View>
                   </View>
+                  {isCompleted && (
+                    <View style={[styles.completedBanner, { backgroundColor: OCEAN_BLUE + "18" }]}>
+                      <Ionicons name="checkmark-circle" size={13} color={OCEAN_BLUE} />
+                      <Text style={[styles.completedText, { color: OCEAN_BLUE }]}>Completed!</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
             );
@@ -280,7 +263,6 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   mascotEmoji: { fontSize: 52 },
-  mascotImg: { width: 80, height: 80 },
   speechBubble: {
     flex: 1,
     backgroundColor: OCEAN_CARD,
@@ -312,90 +294,41 @@ const styles = StyleSheet.create({
 
   /* Timeline */
   timeline: { gap: 0 },
-  timelineRow: { flexDirection: "row", gap: 12, alignItems: "flex-start", marginBottom: 16 },
-  timelineLeft: { width: 72, alignItems: "center", paddingTop: 12 },
-  checkCircle: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 48,
-  },
-  timePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignItems: "center",
-    minWidth: 60,
-  },
-  timePillText: { fontSize: 12, fontWeight: "800", color: "#fff", textAlign: "center" },
-  timelineConnector: { flex: 1, width: 2, marginTop: 8 },
+  timelineRow: { flexDirection: "row", gap: 14, minHeight: CARD_H + 18 },
+  timelineLeft: { width: 68, alignItems: "center", paddingTop: 10 },
+  checkCircle: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  timePill: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 12, alignItems: "center" },
+  timePillText: { fontSize: 10, fontWeight: "800", color: "#fff", textAlign: "center" },
+  timelineConnector: { flex: 1, width: 2, marginTop: 6, marginBottom: 0 },
 
-  /* Adventure card */
   adventureCard: {
     flex: 1,
     backgroundColor: OCEAN_CARD,
-    borderRadius: 22,
+    borderRadius: 20,
+    marginBottom: 14,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  cardContent: {
-    flexDirection: "row",
-    minHeight: 140,
-  },
-  cardText: {
-    flex: 1,
-    paddingTop: 18,
-    paddingBottom: 18,
-    paddingLeft: 18,
-    paddingRight: 10,
-    justifyContent: "center",
-    gap: 6,
-  },
-  cardCategory: { fontSize: 13, fontWeight: "500", color: "#9CA3AF" },
-  cardTitle: { fontSize: 26, fontWeight: "900", color: "#1A1A2E", lineHeight: 30 },
-  cardCoins: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  coinStack: { width: 38, height: 26, position: "relative" },
-  coinBadge: {
-    position: "absolute",
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#F59E0B",
+  cardContent: { flexDirection: "row", padding: 14, gap: 10, minHeight: CARD_H },
+  cardText: { flex: 1, justifyContent: "center", gap: 4 },
+  cardCategory: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  cardTitle: { fontSize: 20, fontWeight: "900", color: "#1E3A5F", lineHeight: 24 },
+  cardCoins: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  coinIconSmall: { fontSize: 14 },
+  cardCoinText: { fontSize: 14, fontWeight: "700", color: "#92400E" },
+  cardThumb: {
+    width: 90,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
+    minHeight: 80,
   },
-  coinBadgeTxt: { fontSize: 11 },
-  cardCoinText: { fontSize: 15, fontWeight: "800", color: "#1A1A2E" },
-
-  /* Circular thumbnail */
-  cardThumbWrap: {
-    width: 130,
-    alignSelf: "stretch",
-    overflow: "hidden",
-    justifyContent: "center",
-    alignItems: "flex-end",
-  },
-  cardThumbCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    marginRight: -16,
-  },
-  cardThumbFallback: { width: 80, height: 68 },
-
-  /* keep unused refs so old code doesn't break */
-  cardThumb: { width: 90, borderRadius: 14, alignItems: "center", justifyContent: "center", minHeight: 80 },
   cardThumbEmoji: { fontSize: 40 },
   cardThumbImg: { width: 80, height: 68 },
-  coinIconSmall: { fontSize: 14 },
   completedBanner: {
     flexDirection: "row",
     alignItems: "center",

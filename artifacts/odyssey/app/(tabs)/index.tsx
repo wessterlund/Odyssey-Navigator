@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentLearner, learners, adventures, wallet, rewards, loading, refreshAll, loadLearners } = useApp();
+  const { currentLearner, learners, adventures, wallet, rewards, loading, refreshAll, loadLearners, setCurrentLearner } = useApp();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -108,7 +108,9 @@ export default function HomeScreen() {
                   },
                 ]}
                 onPress={() => {
-                  // handled in AppContext via setCurrentLearner
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setCurrentLearner(l);
+                  refreshAll(l.id);
                 }}
               >
                 <Text

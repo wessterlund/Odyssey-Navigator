@@ -40,6 +40,8 @@ export default function ChildModeScreen() {
   const [state, setState] = useState<ChildState>("start");
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [stepCoinsEarned, setStepCoinsEarned] = useState(0);
+  const [bonusEarned, setBonusEarned] = useState(0);
   const [completing, setCompleting] = useState(false);
   const [attempts, setAttempts] = useState(1);
   const [startTime, setStartTime] = useState(Date.now());
@@ -58,11 +60,6 @@ export default function ChildModeScreen() {
   }, [id]);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 350,
-      useNativeDriver: true,
-    }).start();
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
 
@@ -168,12 +165,14 @@ export default function ChildModeScreen() {
     await earnCoins(adventure.coinsPerStep, "step", `Step ${currentStepIndex + 1}: ${step.instruction.slice(0, 40)}`);
     await trackPerformance(step.id, true);
     setTotalEarned((prev) => prev + adventure.coinsPerStep);
+    setStepCoinsEarned((prev) => prev + adventure.coinsPerStep);
     animateCoin();
 
     const nextIndex = currentStepIndex + 1;
     if (nextIndex >= adventure.steps.length) {
       await earnCoins(adventure.completionBonus, "completion", `Completed: ${adventure.title}`);
       setTotalEarned((prev) => prev + adventure.completionBonus);
+      setBonusEarned(adventure.completionBonus);
       await fetch(`${apiBase()}/adventures/${adventure.id}/complete`, { method: "PUT" });
       if (currentLearner) await refreshAll(currentLearner.id);
       setState("complete");
@@ -330,8 +329,6 @@ export default function ChildModeScreen() {
   }
 
   if (state === "complete") {
-    const stepCoins = adventure.steps.length * adventure.coinsPerStep;
-    const bonusCoins = adventure.completionBonus;
     return (
       <LinearGradient colors={CELEBRATE_BG} style={[styles.fullscreen, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <Animated.View style={[styles.centerContent, { transform: [{ scale: bounceAnim }] }]}>
@@ -353,12 +350,12 @@ export default function ChildModeScreen() {
           <View style={styles.breakdownCard}>
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Steps completed</Text>
-              <Text style={styles.breakdownCoins}>+{stepCoins} 🪙</Text>
+              <Text style={styles.breakdownCoins}>+{stepCoinsEarned} 🪙</Text>
             </View>
             <View style={styles.breakdownDivider} />
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>Completion bonus</Text>
-              <Text style={styles.breakdownCoins}>+{bonusCoins} 🪙</Text>
+              <Text style={styles.breakdownCoins}>+{bonusEarned} 🪙</Text>
             </View>
             <View style={styles.breakdownDivider} />
             <View style={styles.breakdownRow}>

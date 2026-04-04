@@ -62,7 +62,7 @@ export default function AdventuresScreen() {
           styles.list,
           { paddingBottom: bottomInset + 90 },
         ]}
-        scrollEnabled={!!adventures.length}
+        scrollEnabled={true}
         refreshControl={
           <RefreshControl
             refreshing={loading}

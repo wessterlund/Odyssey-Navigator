@@ -137,9 +137,7 @@ export default function RewardsScreen() {
   };
 
   const deleteReward = (id: number, name: string) => {
-    // Use setTimeout to let any active gesture (tap/long-press) fully settle
-    // before showing the Alert — prevents Android gesture handler swallowing it
-    setTimeout(() => {
+    const showAlert = () => {
       Alert.alert("Delete Reward", `Delete "${name}"?`, [
         { text: "Cancel", style: "cancel" },
         {
@@ -157,7 +155,15 @@ export default function RewardsScreen() {
           },
         },
       ]);
-    }, 50);
+    };
+    // On Android, the GestureHandler holds the active touch event; delaying by
+    // one frame lets it settle so Alert.alert isn't swallowed. On web/iOS the
+    // alert must stay in the synchronous gesture callback or the browser blocks it.
+    if (Platform.OS === "android") {
+      setTimeout(showAlert, 50);
+    } else {
+      showAlert();
+    }
   };
 
   if (!currentLearner) {
@@ -344,9 +350,7 @@ function RewardCard({
             contentFit="cover"
           />
         ) : (
-          <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]}>
-            <Ionicons name="gift" size={32} color={canAfford ? "#16A34A" : colors.primary} />
-          </View>
+          <View style={[styles.contentCardImage, { backgroundColor: canAfford ? "#DCFCE7" : "#EEF2FF" }]} />
         )}
         <View style={styles.contentCardBody}>
           <Text style={[styles.contentCardName, { color: colors.foreground }]} numberOfLines={2}>

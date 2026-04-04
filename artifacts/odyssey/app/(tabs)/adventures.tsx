@@ -1,20 +1,132 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Dimensions,
   Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
-import { useApp } from "@/contexts/AppContext";
-import { CoinBadge } from "@/components/CoinBadge";
+import { useApp, apiBase } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+const H_PAD = 20;
+const CARD_GAP = 12;
+const CARD_WIDTH = (SCREEN_W - H_PAD * 2 - CARD_GAP) / 2;
+
+const ADVENTURE_COLORS = [
+  { bg: "#FEF3C7", text: "#92400E" },
+  { bg: "#CFFAFE", text: "#164E63" },
+  { bg: "#EDE9FE", text: "#4C1D95" },
+  { bg: "#DCFCE7", text: "#14532D" },
+  { bg: "#FCE7F3", text: "#831843" },
+  { bg: "#FEE2E2", text: "#7F1D1D" },
+];
+
+type CommunityTemplate = {
+  id: number;
+  name: string;
+  description: string;
+  author: string;
+  steps: number;
+};
+
+function SectionHeader({
+  title,
+  onViewAll,
+  colors,
+}: {
+  title: string;
+  onViewAll?: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
+      {onViewAll && (
+        <TouchableOpacity onPress={onViewAll}>
+          <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function AdventureColorCard({
+  adventure,
+  index,
+  colors,
+  onPress,
+}: {
+  adventure: { id: number; title: string; steps?: { id: number }[] };
+  index: number;
+  colors: ReturnType<typeof useColors>;
+  onPress: () => void;
+}) {
+  const palette = ADVENTURE_COLORS[index % ADVENTURE_COLORS.length];
+  const stepCount = adventure.steps?.length ?? 0;
+
+  return (
+    <TouchableOpacity
+      style={[styles.colorCard, { backgroundColor: palette.bg }]}
+      onPress={onPress}
+      activeOpacity={0.82}
+    >
+      <Text style={[styles.colorCardTitle, { color: palette.text }]} numberOfLines={3}>
+        {adventure.title}
+      </Text>
+      <Text style={[styles.colorCardSub, { color: palette.text }]}>
+        {stepCount} {stepCount === 1 ? "Step" : "Steps"}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function PhotoCard({
+  name,
+  subtitle,
+  imageUrl,
+  colors,
+  onPress,
+}: {
+  name: string;
+  subtitle: string;
+  imageUrl?: string | null;
+  colors: ReturnType<typeof useColors>;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.photoCard, { backgroundColor: colors.card }]}
+      onPress={onPress}
+      activeOpacity={0.88}
+    >
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={styles.photoCardImage} contentFit="cover" />
+      ) : (
+        <View style={[styles.photoCardImage, { backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center" }]}>
+          <Ionicons name="map-outline" size={32} color={colors.primary} />
+        </View>
+      )}
+      <View style={styles.photoCardBody}>
+        <Text style={[styles.photoCardName, { color: colors.foreground }]} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={[styles.photoCardSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function AdventuresScreen() {
   const colors = useColors();
@@ -22,12 +134,36 @@ export default function AdventuresScreen() {
   const insets = useSafeAreaInsets();
   const { currentLearner, adventures, loading, loadAdventures } = useApp();
 
+  const [templates, setTemplates] = useState<CommunityTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   useEffect(() => {
     if (currentLearner) loadAdventures(currentLearner.id);
+    loadTemplates();
   }, [currentLearner?.id]);
+
+  const loadTemplates = async () => {
+    try {
+      setTemplatesLoading(true);
+      const res = await fetch(`${apiBase()}/adventures/community-templates`);
+      if (res.ok) setTemplates(await res.json());
+    } catch {
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const onRefresh = () => {
+    if (currentLearner) loadAdventures(currentLearner.id);
+    loadTemplates();
+  };
+
+  const myAdventures = adventures.filter((a) => !a.isTemplate);
+  const draftAdventures = myAdventures.filter((a) => !a.steps || a.steps.length === 0);
+  const activeAdventures = myAdventures.filter((a) => a.steps && a.steps.length > 0);
 
   if (!currentLearner) {
     return (
@@ -42,80 +178,138 @@ export default function AdventuresScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View style={[styles.headerBar, { paddingTop: topInset + 8 }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Adventures</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Adventures</Text>
+        <View style={styles.backBtn} />
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomInset + 100 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading || templatesLoading}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Adventures Section */}
+        <SectionHeader
+          title="Adventures"
+          onViewAll={() => {}}
+          colors={colors}
+        />
+
+        {activeAdventures.length === 0 ? (
+          <View style={[styles.emptySection, { borderColor: colors.border }]}>
+            <Text style={[styles.emptySectionText, { color: colors.mutedForeground }]}>
+              No adventures yet — create one below!
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {activeAdventures.map((adv, i) => (
+              <AdventureColorCard
+                key={adv.id}
+                adventure={adv}
+                index={i}
+                colors={colors}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/adventure/${adv.id}`);
+                }}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Divider */}
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* Drafts Section */}
+        <SectionHeader
+          title="Drafts"
+          onViewAll={() => {}}
+          colors={colors}
+        />
+
+        {draftAdventures.length === 0 ? (
+          <View style={[styles.emptySection, { borderColor: colors.border }]}>
+            <Text style={[styles.emptySectionText, { color: colors.mutedForeground }]}>
+              No drafts — all adventures are complete!
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {draftAdventures.map((adv) => (
+              <PhotoCard
+                key={adv.id}
+                name={adv.title}
+                subtitle="Continue"
+                imageUrl={(adv as any).imageUrl ?? null}
+                colors={colors}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/adventure/${adv.id}`);
+                }}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Divider */}
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* Community Templates Section */}
+        <SectionHeader
+          title="Community templates"
+          onViewAll={() => {}}
+          colors={colors}
+        />
+
+        {templates.length === 0 ? (
+          <View style={[styles.emptySection, { borderColor: colors.border }]}>
+            <Text style={[styles.emptySectionText, { color: colors.mutedForeground }]}>
+              Loading templates…
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {templates.slice(0, 4).map((t) => (
+              <PhotoCard
+                key={t.id}
+                name={t.name}
+                subtitle={`By ${t.author}`}
+                imageUrl={null}
+                colors={colors}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Add new adventure */}
+      <View style={[styles.addBarContainer, { paddingBottom: bottomInset + 8 }]}>
         <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
+          style={[styles.addBar, { backgroundColor: colors.primary }]}
+          activeOpacity={0.88}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push("/adventure/create");
           }}
         >
-          <Ionicons name="add" size={22} color={colors.primaryForeground} />
+          <Text style={styles.addBarText}>Add new adventure</Text>
         </TouchableOpacity>
       </View>
-
-      <FlatList
-        data={adventures}
-        keyExtractor={(item) => String(item.id)}
-        style={styles.flatList}
-        contentContainerStyle={[
-          styles.list,
-          { paddingBottom: bottomInset + 90 },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={loading}
-            onRefresh={() => loadAdventures(currentLearner.id)}
-            tintColor={colors.primary}
-          />
-        }
-        ListEmptyComponent={
-          <TouchableOpacity
-            style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => router.push("/adventure/create")}
-          >
-            <Ionicons name="sparkles" size={40} color={colors.primary} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              No Adventures Yet
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-              Create your first AI-powered adventure for {currentLearner.name}
-            </Text>
-          </TouchableOpacity>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.card, { backgroundColor: colors.card }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/adventure/${item.id}`);
-            }}
-          >
-            <View style={[styles.cardIcon, { backgroundColor: colors.secondary }]}>
-              <Ionicons name="map" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{item.title}</Text>
-              {item.description && (
-                <Text
-                  style={[styles.cardDesc, { color: colors.mutedForeground }]}
-                  numberOfLines={2}
-                >
-                  {item.description}
-                </Text>
-              )}
-              <View style={styles.cardMeta}>
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-                  {item.steps?.length ?? 0} steps
-                </Text>
-                <CoinBadge amount={item.coinsPerStep} size="sm" />
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        )}
-      />
     </View>
   );
 }
@@ -123,45 +317,91 @@ export default function AdventuresScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  flatList: { flex: 1 },
+  emptyText: { fontSize: 15, fontWeight: "500" },
+
   headerBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    justifyContent: "space-between",
+  },
+  backBtn: { width: 36, alignItems: "flex-start" },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
+
+  scrollContent: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 8,
+    gap: 0,
+  },
+
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    marginBottom: 12,
+    marginTop: 4,
   },
-  title: { fontSize: 26, fontWeight: "700" },
-  addBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  list: { paddingHorizontal: 20, paddingTop: 4, gap: 10 },
-  emptyCard: {
-    borderRadius: 20,
-    padding: 32,
-    alignItems: "center",
-    gap: 12,
+  sectionTitle: { fontSize: 20, fontWeight: "700" },
+  viewAll: { fontSize: 14, fontWeight: "500" },
+
+  divider: { height: 1, marginVertical: 20 },
+
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: CARD_GAP,
+    marginBottom: 4,
+  },
+
+  /* Colored adventure card */
+  colorCard: {
+    width: CARD_WIDTH,
+    height: CARD_WIDTH,
+    borderRadius: 14,
+    padding: 14,
+    justifyContent: "space-between",
+  },
+  colorCardTitle: { fontSize: 16, fontWeight: "700", lineHeight: 22 },
+  colorCardSub: { fontSize: 13, fontWeight: "500", marginTop: 8 },
+
+  /* Photo card (drafts / templates) */
+  photoCard: {
+    width: CARD_WIDTH,
+    borderRadius: 14,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  photoCardImage: { width: "100%", height: 110 },
+  photoCardBody: { padding: 10, gap: 2 },
+  photoCardName: { fontSize: 14, fontWeight: "700" },
+  photoCardSub: { fontSize: 12 },
+
+  /* Empty state */
+  emptySection: {
     borderWidth: 1,
     borderStyle: "dashed",
-    marginTop: 20,
-  },
-  emptyTitle: { fontSize: 18, fontWeight: "700" },
-  emptySubtitle: { fontSize: 14, textAlign: "center", lineHeight: 20 },
-  emptyText: { fontSize: 15, fontWeight: "500" },
-  card: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
+    borderRadius: 12,
+    padding: 20,
     alignItems: "center",
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 4,
   },
-  cardIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  cardContent: { flex: 1, gap: 3 },
-  cardTitle: { fontSize: 15, fontWeight: "700" },
-  cardDesc: { fontSize: 13, lineHeight: 18 },
-  cardMeta: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 },
-  metaText: { fontSize: 12 },
+  emptySectionText: { fontSize: 13, textAlign: "center" },
+
+  /* Add bar */
+  addBarContainer: {
+    paddingHorizontal: H_PAD,
+    paddingTop: 10,
+  },
+  addBar: {
+    borderRadius: 50,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addBarText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

@@ -9,6 +9,21 @@ import { eq, asc } from "drizzle-orm";
 
 const router = Router();
 
+const ADVENTURE_TEMPLATES = [
+  { name: "Morning Routine", description: "Step-by-step guide for a successful morning", author: "Molly Brown", steps: 5 },
+  { name: "Washing Hands", description: "Proper handwashing technique", author: "Phil G", steps: 4 },
+  { name: "Getting Dressed", description: "Independently putting on clothes", author: "Casey Dean", steps: 6 },
+  { name: "Brushing Teeth", description: "Healthy dental hygiene routine", author: "Farah Brown", steps: 5 },
+  { name: "Making a Sandwich", description: "Simple meal prep for independence", author: "Molly Brown", steps: 7 },
+  { name: "Taking Turns", description: "Learning to share and wait patiently", author: "Phil G", steps: 4 },
+  { name: "Asking for Help", description: "Communicating needs to others", author: "Casey Dean", steps: 3 },
+  { name: "Packing a Backpack", description: "Organising items for school", author: "Farah Brown", steps: 5 },
+];
+
+router.get("/community-templates", async (_req, res) => {
+  res.json(ADVENTURE_TEMPLATES.map((t, i) => ({ ...t, id: -(i + 1), isTemplate: true })));
+});
+
 router.get("/learner/:learnerId", async (req, res) => {
   const learnerId = parseInt(req.params.learnerId);
   const adventures = await db

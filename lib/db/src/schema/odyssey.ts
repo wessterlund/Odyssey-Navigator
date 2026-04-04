@@ -148,6 +148,54 @@ export const voyageLogsTable = pgTable("voyage_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+/* ── Teacher Hub: Parents ─────────────────────────────── */
+export const parentsTable = pgTable("parents", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  learnerIds: jsonb("learner_ids").$type<number[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/* ── Teacher Hub: Classes ─────────────────────────────── */
+export const classesTable = pgTable("classes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  academicYear: text("academic_year").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  learnerIds: jsonb("learner_ids").$type<number[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/* ── Teacher Hub: Announcements ───────────────────────── */
+export const announcementsTable = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  classTag: text("class_tag"),
+  isDraft: boolean("is_draft").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/* ── Teacher Hub: Explorer Logs ───────────────────────── */
+export const explorerLogsTable = pgTable("explorer_logs", {
+  id: serial("id").primaryKey(),
+  learnerId: integer("learner_id")
+    .notNull()
+    .references(() => learnersTable.id, { onDelete: "cascade" }),
+  logDate: text("log_date").notNull(),
+  activityName: text("activity_name").notNull(),
+  notes: text("notes"),
+  videoUrl: text("video_url"),
+  color: text("color").default("#2F80ED"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertLearnerSchema = createInsertSchema(learnersTable).omit({
   id: true,
   createdAt: true,
@@ -179,6 +227,11 @@ export const insertVoyageLogSchema = createInsertSchema(voyageLogsTable).omit({
   createdAt: true,
 });
 
+export const insertParentSchema = createInsertSchema(parentsTable).omit({ id: true, createdAt: true });
+export const insertClassSchema = createInsertSchema(classesTable).omit({ id: true, createdAt: true });
+export const insertAnnouncementSchema = createInsertSchema(announcementsTable).omit({ id: true, createdAt: true });
+export const insertExplorerLogSchema = createInsertSchema(explorerLogsTable).omit({ id: true, createdAt: true });
+
 export type Learner = typeof learnersTable.$inferSelect;
 export type Adventure = typeof adventuresTable.$inferSelect;
 export type Step = typeof stepsTable.$inferSelect;
@@ -197,3 +250,13 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type InsertPerformance = z.infer<typeof insertPerformanceSchema>;
 export type InsertVoyagePath = z.infer<typeof insertVoyagePathSchema>;
 export type InsertVoyageLog = z.infer<typeof insertVoyageLogSchema>;
+
+export type Parent = typeof parentsTable.$inferSelect;
+export type Class = typeof classesTable.$inferSelect;
+export type Announcement = typeof announcementsTable.$inferSelect;
+export type ExplorerLog = typeof explorerLogsTable.$inferSelect;
+
+export type InsertParent = z.infer<typeof insertParentSchema>;
+export type InsertClass = z.infer<typeof insertClassSchema>;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+export type InsertExplorerLog = z.infer<typeof insertExplorerLogSchema>;

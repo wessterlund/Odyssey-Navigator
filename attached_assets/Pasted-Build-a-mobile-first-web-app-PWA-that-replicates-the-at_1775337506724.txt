@@ -1,0 +1,351 @@
+Build a mobile-first web app (PWA) that replicates the attached Figma screens EXACTLY in layout, flow, and behavior.
+
+🧠 CORE ARCHITECTURE
+
+Tech Stack
+
+Frontend: React + TypeScript + Tailwind
+Backend: Node.js + Express
+Database: SQLite (via Prisma ORM)
+State: Zustand (or React Context)
+Storage: Local file storage (simulate S3)
+Video: Use browser MediaRecorder API
+Routing: React Router
+📱 GLOBAL UI RULES
+Mobile-first (390px width baseline)
+Rounded cards (2xl), soft shadows
+Consistent spacing (8pt grid)
+Sticky bottom navigation
+Floating “+” primary action button
+Reusable components:
+StudentCard
+ClassCard
+ParentCard
+Modal
+BottomSheet
+FormInput
+ProgressIndicator
+🧩 MODULES TO BUILD
+1. 🏠 TEACHER HUB (HOME)
+Sections:
+Header: "Teacher’s Hub"
+Tabs: My Book | Announcements | Posts
+Featured Card (top banner)
+Grid Menu:
+Classes
+Students
+Adventures
+Rewards
+Parents
+Lessons
+Behavior:
+Tabs switch content (no reload)
+Cards clickable → navigate to modules
+2. 👩‍🎓 STUDENTS MODULE
+Features:
+List of students with:
+Avatar
+Name
+Parent
+Section
+Progress %
+Actions:
+Search students
+Add student (+ button)
+Select student → opens bottom sheet
+Add Student Flow:
+
+Fields:
+
+Name
+Parent (dropdown or text)
+States:
+Success modal
+Error modal
+3. 🏫 CLASSES MODULE
+Features:
+Active / Inactive toggle sections
+Class cards:
+Name (e.g., SNED Section 1)
+Academic Year
+Student count
+Toggle switch (active/inactive)
+Actions:
+Add Class:
+Section name
+Academic year
+Assign students (multi-select)
+Extra:
+Deactivate confirmation modal
+4. 📢 ANNOUNCEMENTS MODULE
+Features:
+Announcement feed (card style)
+Includes:
+Title
+Description
+Date range
+Time
+Class tag
+Create Announcement:
+
+Fields:
+
+Title
+Description
+Start Date
+End Date
+Start Time
+End Time
+Class
+
+Buttons:
+
+Save as Draft
+Publish
+5. 👨‍👩‍👧 PARENTS MODULE
+Features:
+Parent list
+Each parent shows:
+Name
+Linked child
+Parent Detail:
+Child info
+Explorer Logs section
+Actions:
+Add new log
+Create group chat
+Add student
+6. 📊 EXPLORER LOGS
+Features:
+Calendar-style visual grid
+Colored activity blocks
+Month navigation
+Add Log:
+
+Fields:
+
+Start Date
+End Date
+Log entries (multi-day grid)
+Behavior:
+Tap days → toggle activity
+Save attaches log to student
+7. 🎥 VIDEO RECORDING (CRITICAL)
+Flow:
+Triggered inside a student activity/log
+Open camera preview
+Controls:
+Start Recording button
+Stop Recording button
+After Recording:
+Automatically compress video (use browser compression or reduce bitrate)
+Save locally
+Attach to:
+Student
+Specific log or step
+Constraints:
+Max duration: 60 seconds
+Compress before saving
+Show preview thumbnail after save
+8. ➕ GLOBAL ACTION BUTTON
+
+Floating center button:
+
+Opens bottom sheet with:
+Add new student
+Create announcement
+Create group chat
+🧠 DATA MODEL (PRISMA)
+model Student {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  sectionId String?
+  progress  Int
+  logs      Log[]
+}
+
+model Parent {
+  id       String @id @default(uuid())
+  name     String
+  students Student[]
+}
+
+model Class {
+  id            String @id @default(uuid())
+  name          String
+  academicYear  String
+  isActive      Boolean
+  students      Student[]
+}
+
+model Announcement {
+  id          String @id @default(uuid())
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  startTime   String
+  endTime     String
+  classId     String
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  studentId String
+  dates     Json
+  videos    Video[]
+}
+
+model Video {
+  id     String @id @default(uuid())
+  url    String
+  logId  String
+}
+⚙️ KEY BEHAVIOR RULES
+NO page reloads (SPA behavior)
+Optimistic UI updates
+All forms validated
+Modals must match Figma exactly
+Maintain consistent spacing + typography
+Bottom navigation always visible
+🚨 CRITICAL IMPLEMENTATION NOTES
+Fix common Replit issues:
+Ensure camera permissions handled properly
+Handle MediaRecorder cleanup
+Prevent duplicate student creation
+Ensure state sync after CRUD operations
+Use reusable hooks:
+useStudents()
+useClasses()
+useAnnouncements()
+🎯 FINAL OUTPUT REQUIREMENTS
+Fully functional MVP
+Clean component structure
+Mobile responsive
+All flows working:
+Add student
+Create class
+Record video
+Add logs
+Publish announcement
+
+If this still “doesn’t work” in Replit, tell me what breaks (UI, backend, or camera), and I’ll debug it with you step-by-step—no fluff.
+
+create only a prompt to create the teacher hub and to tell replit to merge it with the existing code
+
+Here’s a focused, no-fluff Replit prompt that ONLY builds the Teacher Hub module and correctly integrates it into your existing codebase 👇
+
+🔥 REPLIT PROMPT — TEACHER HUB MODULE (INTEGRATED)
+
+Update the existing application by adding a fully functional “Teacher Hub” module based on the attached design, and merge it cleanly into the current codebase without breaking existing features.
+
+🧠 INTEGRATION RULES (CRITICAL)
+DO NOT rebuild the app from scratch
+DO NOT overwrite existing files unless necessary
+Reuse:
+Existing layout system
+Navigation (bottom nav / routing)
+Styling system (Tailwind / theme)
+State management (Zustand / Context)
+If a required component does not exist → create it modularly
+All new code must be plug-and-play into current architecture
+📱 TEACHER HUB (HOME SCREEN)
+Route:
+
+/teacher-hub (or make it the default home if applicable)
+
+🧩 UI STRUCTURE
+1. HEADER
+Title: Teacher’s Hub
+2. TAB SWITCHER
+
+Tabs:
+
+My Book (default active)
+Announcements
+Posts
+Behavior:
+Tabs switch content WITHOUT page reload
+Maintain internal state
+3. FEATURED CARD (TOP BANNER)
+Large card with:
+Illustration (placeholder if needed)
+Title
+Short description
+4. MAIN GRID (CORE NAVIGATION)
+
+Create a 2-column grid of cards:
+
+Each card includes:
+
+Icon / illustration
+Title
+Subtitle (optional)
+
+Cards:
+
+Classes
+Students
+Adventures
+Rewards
+Parents
+Lessons
+⚡ CARD BEHAVIOR
+
+Each card must:
+
+Be clickable
+Navigate to existing routes IF they exist
+If route does NOT exist → create placeholder page
+Example routes:
+/classes
+/students
+/adventures
+/rewards
+/parents
+/lessons
+➕ FLOATING ACTION BUTTON (FAB)
+Center-bottom floating button
+Opens a bottom sheet modal
+Options inside:
+Add new student
+Create announcement
+Create group chat
+🧱 COMPONENTS (REUSE OR CREATE)
+TabSwitcher
+FeatureCard
+GridMenu
+GridMenuItem
+BottomSheet
+FloatingActionButton
+🎨 DESIGN RULES
+Match existing design system EXACTLY
+Mobile-first (390px width)
+Rounded cards (2xl)
+Soft shadows
+Consistent spacing (8pt grid)
+🔄 STATE MANAGEMENT
+Local UI state for:
+Active tab
+Bottom sheet visibility
+DO NOT introduce new global state unless necessary
+🔌 NAVIGATION INTEGRATION
+Add Teacher Hub to:
+Existing router
+Bottom navigation (if applicable)
+Ensure:
+No broken links
+Back navigation works correctly
+🚨 EDGE CASES
+If modules (e.g., Students) already exist → link correctly
+If they don’t exist → create simple placeholder pages
+Avoid duplicate routes
+Avoid conflicting component names
+✅ ACCEPTANCE CRITERIA
+Teacher Hub loads without errors
+Tabs switch properly
+Grid navigation works
+FAB opens bottom sheet
+Fully integrated into existing app
+No regressions in current features

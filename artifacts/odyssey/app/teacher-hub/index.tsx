@@ -23,15 +23,15 @@ const ARTICLE = {
 };
 
 const STUDENTS_GRID = [
-  { id: 1, label: "Classes",    sub: "View all", blobColor: "#C7D9F8", figureColor: "#5B8AF0", emoji: "📚" },
-  { id: 2, label: "Students",   sub: "View all", blobColor: "#C7D9F8", figureColor: "#E07B6E", emoji: "🎓" },
-  { id: 3, label: "Adventures", sub: "View all", blobColor: "#C7D9F8", figureColor: "#5B8AF0", emoji: "🗺️" },
-  { id: 4, label: "Rewards",    sub: "View all", blobColor: "#F5D5C8", figureColor: "#E07B6E", emoji: "🎁" },
+  { id: 1, label: "Classes",    sub: "View all", blobColor: "#C7D9F8", figureColor: "#5B8AF0", emoji: "📚", route: "/teacher-hub/classes" },
+  { id: 2, label: "Students",   sub: "View all", blobColor: "#C7D9F8", figureColor: "#E07B6E", emoji: "🎓", route: "/teacher-hub/students" },
+  { id: 3, label: "Adventures", sub: "View all", blobColor: "#C7D9F8", figureColor: "#5B8AF0", emoji: "🗺️", route: "/(tabs)/adventures" },
+  { id: 4, label: "Rewards",    sub: "View all", blobColor: "#F5D5C8", figureColor: "#E07B6E", emoji: "🎁", route: "/(tabs)/rewards" },
 ];
 
 const PARENTS_GRID = [
-  { id: 1, label: "Parents",  sub: "View all", blobColor: "#C7D9F8", figureColor: "#5B8AF0", emoji: "👨‍👩‍👧" },
-  { id: 2, label: "Lessons",  sub: "View all", blobColor: "#D4C7F5", figureColor: "#9B7FE0", emoji: "📖" },
+  { id: 1, label: "Parents",  sub: "View all", blobColor: "#C7D9F8", figureColor: "#5B8AF0", emoji: "👨‍👩‍👧", route: "/teacher-hub/parents" },
+  { id: 2, label: "Lessons",  sub: "View all", blobColor: "#D4C7F5", figureColor: "#9B7FE0", emoji: "📖", route: "/teacher-hub/announcements" },
 ];
 
 /* ─── Blob card component ─────────────────────────────── */
@@ -39,7 +39,7 @@ function BlobCard({
   item,
   onPress,
 }: {
-  item: (typeof STUDENTS_GRID)[0];
+  item: (typeof STUDENTS_GRID)[0] & { route?: string };
   onPress?: () => void;
 }) {
   return (
@@ -160,7 +160,14 @@ export default function TeacherHubScreen() {
         <Text style={[styles.sectionTitle, { color: "#2F80ED" }]}>Students</Text>
         <View style={styles.grid}>
           {STUDENTS_GRID.map((item) => (
-            <BlobCard key={item.id} item={item} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} />
+            <BlobCard
+              key={item.id}
+              item={item}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (item.route) router.push(item.route as any);
+              }}
+            />
           ))}
         </View>
 
@@ -168,7 +175,14 @@ export default function TeacherHubScreen() {
         <Text style={[styles.sectionTitle, { color: "#2F80ED" }]}>Parents</Text>
         <View style={styles.grid}>
           {PARENTS_GRID.map((item) => (
-            <BlobCard key={item.id} item={item} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} />
+            <BlobCard
+              key={item.id}
+              item={item}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (item.route) router.push(item.route as any);
+              }}
+            />
           ))}
         </View>
       </ScrollView>

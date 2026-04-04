@@ -109,6 +109,7 @@ export default function ChildModeHomeScreen() {
           data={adventures}
           renderItem={renderAdventure}
           keyExtractor={(a) => String(a.id)}
+          style={styles.flatList}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -119,6 +120,7 @@ export default function ChildModeHomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flatList: { flex: 1 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

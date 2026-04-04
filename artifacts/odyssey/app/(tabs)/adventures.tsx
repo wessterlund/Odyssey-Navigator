@@ -58,11 +58,11 @@ export default function AdventuresScreen() {
       <FlatList
         data={adventures}
         keyExtractor={(item) => String(item.id)}
+        style={styles.flatList}
         contentContainerStyle={[
           styles.list,
           { paddingBottom: bottomInset + 90 },
         ]}
-        scrollEnabled={true}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -123,6 +123,7 @@ export default function AdventuresScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  flatList: { flex: 1 },
   headerBar: {
     flexDirection: "row",
     justifyContent: "space-between",

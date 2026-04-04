@@ -151,30 +151,25 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
 
       {/* ─── Category Grid ──────────────────────────────── */}
       <View style={styles.catGrid}>
-        <TouchableOpacity
-          style={[styles.catTile, { backgroundColor: "#EBF3FF" }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/adventures"); }}
-          activeOpacity={0.8}
-        >
-          <Image source={ADVENTURE_ICON} style={styles.catImg} resizeMode="contain" />
-          <Text style={[styles.catLabel, { color: colors.foreground }]}>Adventures</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.catTile, { backgroundColor: "#FEF3C7" }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/rewards"); }}
-          activeOpacity={0.8}
-        >
-          <Image source={REWARDS_ICON} style={styles.catImg} resizeMode="contain" />
-          <Text style={[styles.catLabel, { color: colors.foreground }]}>Rewards</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.catTile, { backgroundColor: "#F0FFF4" }]}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/voyage/create"); }}
-          activeOpacity={0.8}
-        >
-          <Image source={VOYAGE_ICON} style={styles.catImg} resizeMode="contain" />
-          <Text style={[styles.catLabel, { color: colors.foreground }]}>Voyage Path</Text>
-        </TouchableOpacity>
+        {([
+          { label: "Adventures", icon: ADVENTURE_ICON, route: "/(tabs)/adventures", illBg: "#E4EDFF" },
+          { label: "Rewards",    icon: REWARDS_ICON,   route: "/(tabs)/rewards",    illBg: "#FDEEE6" },
+          { label: "Voyage Path",icon: VOYAGE_ICON,    route: "/voyage/create",     illBg: "#EDE8FF" },
+        ] as const).map((tile) => (
+          <TouchableOpacity
+            key={tile.label}
+            style={styles.catCard}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(tile.route as any); }}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.catCardIll, { backgroundColor: tile.illBg }]}>
+              <Image source={tile.icon} style={styles.catCardImg} resizeMode="contain" />
+            </View>
+            <View style={styles.catCardLabel}>
+              <Text style={[styles.catCardText, { color: colors.foreground }]}>{tile.label}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* ─── Updates Feed ───────────────────────────────── */}
@@ -297,11 +292,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   heroBtnText: { fontSize: 14, fontWeight: "700", color: "#2F80ED", whiteSpace: "nowrap" } as any,
-  catGrid: { flexDirection: "row", gap: 12 },
-  catTile: { flex: 1, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 10, alignItems: "center", gap: 8 },
-  catEmoji: { fontSize: 32 },
-  catImg: { width: 52, height: 44 },
-  catLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  catGrid: { flexDirection: "row", gap: 10 },
+  catCard: {
+    flex: 1,
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  catCardIll: {
+    paddingTop: 18,
+    paddingBottom: 14,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 110,
+  },
+  catCardImg: { width: 90, height: 80 },
+  catCardLabel: {
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: "center",
+  },
+  catCardText: { fontSize: 13, fontWeight: "700", textAlign: "center" },
   updatesSection: { gap: 14 },
   updatesTitle: { fontSize: 24, fontWeight: "800" },
   filterRow: { marginHorizontal: -4 },

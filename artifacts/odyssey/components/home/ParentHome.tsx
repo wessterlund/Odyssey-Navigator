@@ -18,6 +18,7 @@ import { useApp } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
 const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
+const REWARDS_ICON = require("@/assets/images/rewards-icon.png");
 
 const AVATAR_COLORS = [
   "#2F80ED","#8B5CF6","#EC4899","#F59E0B","#10B981","#EF4444","#06B6D4","#F97316",
@@ -164,6 +165,8 @@ export default function ParentHome({ topPadding }: { topPadding?: number }) {
           >
             {cat.label === "Adventures" ? (
               <Image source={ADVENTURE_ICON} style={styles.catImg} resizeMode="contain" />
+            ) : cat.label === "Rewards" ? (
+              <Image source={REWARDS_ICON} style={styles.catImg} resizeMode="contain" />
             ) : (
               <Text style={styles.catEmoji}>{cat.emoji}</Text>
             )}

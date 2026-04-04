@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 
 const TEACHER_HERO = require("@/assets/images/strawberry-hero.png");
 const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
+const REWARDS_ICON = require("@/assets/images/rewards-icon.png");
 
 const TIPS = [
   {
@@ -162,7 +163,7 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/(tabs)/rewards"); }}
           activeOpacity={0.8}
         >
-          <Text style={styles.catEmoji}>🎁</Text>
+          <Image source={REWARDS_ICON} style={styles.catImg} resizeMode="contain" />
           <Text style={[styles.catLabel, { color: colors.foreground }]}>Rewards</Text>
         </TouchableOpacity>
         <TouchableOpacity

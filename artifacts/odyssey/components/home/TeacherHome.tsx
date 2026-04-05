@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
-  Image,
 } from "react-native";
 
 import { useRouter } from "expo-router";
@@ -17,41 +16,63 @@ import { useColors } from "@/hooks/useColors";
 import { useApp, apiBase } from "@/contexts/AppContext";
 import * as Haptics from "expo-haptics";
 
-const TEACHER_HERO = require("@/assets/images/strawberry-hero.png");
-const ADVENTURE_ICON = require("@/assets/images/adventure-icon.png");
-const REWARDS_ICON = require("@/assets/images/rewards-icon.png");
-const VOYAGE_ICON  = require("@/assets/images/voyage-icon.png");
-
 const TIPS = [
   {
     id: 1,
     tag: "Strategy",
+    tagBg: "#EBF3FF",
+    tagColor: "#2F80ED",
     title: "Floortime Therapy",
-    body: "Floortime is child-led. The parent guides the child in play activities as a way to teach specific skills.",
+    body: "Floortime is child-led. The parent guides the child in play as a way to teach specific skills.",
     author: "Odyssey Learning",
     level: "All Level",
-    emoji: "🧩",
-    color: "#EBF3FF",
   },
   {
     id: 2,
     tag: "Adventure",
+    tagBg: "#FFF7ED",
+    tagColor: "#EA580C",
     title: "Visual Schedules",
     body: "Visual schedules help children with autism understand daily routines and reduce anxiety around transitions.",
     author: "Odyssey Learning",
     level: "Beginner",
-    emoji: "🗓️",
-    color: "#F0FFF4",
   },
   {
     id: 3,
     tag: "Rewards",
+    tagBg: "#ECFDF5",
+    tagColor: "#059669",
     title: "Token Economy Systems",
-    body: "A token economy system helps reinforce positive behaviors by allowing children to earn tokens for desired activities.",
+    body: "A token economy system helps reinforce positive behaviors by allowing children to earn tokens.",
     author: "Odyssey Learning",
     level: "Intermediate",
-    emoji: "🏆",
-    color: "#FFFBEB",
+  },
+];
+
+const QUICK_ACTIONS = [
+  {
+    label: "Adventures",
+    subtitle: "Manage student maps",
+    iconName: "map-outline" as const,
+    iconBg: "#FFF7ED",
+    iconColor: "#F97316",
+    route: "/(tabs)/adventures" as const,
+  },
+  {
+    label: "Rewards",
+    subtitle: "Send tokens & gifts",
+    iconName: "gift-outline" as const,
+    iconBg: "#ECFDF5",
+    iconColor: "#059669",
+    route: "/(tabs)/rewards" as const,
+  },
+  {
+    label: "Voyage Path",
+    subtitle: "Track learning journey",
+    iconName: "rocket-outline" as const,
+    iconBg: "#F5F3FF",
+    iconColor: "#7C3AED",
+    route: "/voyage/create" as const,
   },
 ];
 
@@ -110,78 +131,100 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
             <Text style={[styles.hiNameBold, { color: colors.primary }]}>{firstName}!</Text>
           </View>
         </View>
+
+        <View style={styles.headerRight}>
+          {/* Bell icon with notification dot */}
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.foreground} />
+            <View style={styles.notifDot} />
+          </TouchableOpacity>
+
+          {/* Avatar with blue border */}
+          <TouchableOpacity
+            style={[styles.avatarBtn, { backgroundColor: avatarColor, borderColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (currentLearner) router.push(`/profile/${currentLearner.id}`);
+              else router.push("/(tabs)/students");
+            }}
+          >
+            <Text style={styles.avatarBtnText}>{initials}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ─── Compact Hero Card ──────────────────────────── */}
+      <View style={[styles.heroCard, { backgroundColor: colors.primary }]}>
+        <View style={styles.heroLeft}>
+          <View style={styles.heroCountBox}>
+            <Text style={styles.heroCountText}>
+              {activeAdventures.length || learners.length || 5}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.heroSubLine}>Students on</Text>
+            <Text style={styles.heroSubLine}>adventures</Text>
+          </View>
+        </View>
         <TouchableOpacity
-          style={[styles.avatarBtn, { backgroundColor: avatarColor }]}
+          style={styles.heroBtn}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (currentLearner) router.push(`/profile/${currentLearner.id}`);
-            else router.push("/(tabs)/students");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push("/teacher-hub");
           }}
         >
-          <Text style={styles.avatarBtnText}>{initials}</Text>
+          <Text style={styles.heroBtnText}>Teacher's Hub</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ─── Hero Card ──────────────────────────────────── */}
-      <View style={[styles.heroCard, { backgroundColor: colors.primary }]}>
-        {/* Left: stat number + description */}
-        <View style={styles.heroLeft}>
-          <Text style={styles.heroNum}>{activeAdventures.length || learners.length || 10}</Text>
-          <Text style={styles.heroSub}>
-            {"Students currently\non adventures"}
-          </Text>
+      {/* ─── Quick Actions (List Rows) ───────────────────── */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
+        <View style={styles.actionList}>
+          {QUICK_ACTIONS.map((action) => (
+            <TouchableOpacity
+              key={action.label}
+              style={[styles.actionRow, { backgroundColor: colors.card }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(action.route as any);
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: action.iconBg }]}>
+                <Ionicons name={action.iconName} size={24} color={action.iconColor} />
+              </View>
+              <View style={styles.actionText}>
+                <Text style={[styles.actionLabel, { color: colors.foreground }]}>{action.label}</Text>
+                <Text style={[styles.actionSub, { color: colors.mutedForeground }]}>{action.subtitle}</Text>
+              </View>
+              <View style={[styles.chevronBox, { backgroundColor: colors.secondary }]}>
+                <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
-
-        {/* Right: illustration + CTA button */}
-        <View style={styles.heroRight}>
-          <View style={styles.heroImgWrap}>
-            <Image source={TEACHER_HERO} style={styles.heroImg} resizeMode="contain" />
-          </View>
-          <TouchableOpacity
-            style={styles.heroBtn}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/teacher-hub");
-            }}
-          >
-            <Text style={styles.heroBtnText}>Teacher's Hub</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ─── Category Grid ──────────────────────────────── */}
-      <View style={styles.catGrid}>
-        {([
-          { label: "Adventures", icon: ADVENTURE_ICON, route: "/(tabs)/adventures", illBg: "#E4EDFF" },
-          { label: "Rewards",    icon: REWARDS_ICON,   route: "/(tabs)/rewards",    illBg: "#FDEEE6" },
-          { label: "Voyage Path",icon: VOYAGE_ICON,    route: "/voyage/create",     illBg: "#EDE8FF" },
-        ] as const).map((tile) => (
-          <TouchableOpacity
-            key={tile.label}
-            style={styles.catCard}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(tile.route as any); }}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.catCardIll, { backgroundColor: tile.illBg }]}>
-              <Image source={tile.icon} style={styles.catCardImg} resizeMode="contain" />
-            </View>
-            <View style={styles.catCardLabel}>
-              <Text style={[styles.catCardText, { color: colors.foreground }]}>{tile.label}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
       </View>
 
       {/* ─── Updates Feed ───────────────────────────────── */}
-      <View style={styles.updatesSection}>
-        <Text style={[styles.updatesTitle, { color: colors.foreground }]}>Updates</Text>
+      <View style={styles.section}>
+        <View style={styles.sectionRow}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Updates</Text>
+          <TouchableOpacity onPress={() => Haptics.selectionAsync()}>
+            <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ paddingRight: 4 }}>
           {(["All", "Courses", "Posts"] as FeedTag[]).map((tag) => (
             <TouchableOpacity
               key={tag}
               style={[
                 styles.filterChip,
-                { backgroundColor: activeTag === tag ? colors.primary : "transparent", borderColor: activeTag === tag ? colors.primary : colors.border },
+                { backgroundColor: activeTag === tag ? "#1A1A1A" : "#fff", borderColor: activeTag === tag ? "#1A1A1A" : colors.border },
               ]}
               onPress={() => { Haptics.selectionAsync(); setActiveTag(tag); }}
             >
@@ -190,23 +233,27 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
           ))}
         </ScrollView>
 
-        {filteredTips.map((tip) => (
-          <View key={tip.id} style={[styles.articleCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.articleBanner, { backgroundColor: tip.color }]}>
-              <Text style={styles.articleBannerEmoji}>{tip.emoji}</Text>
-            </View>
-            <View style={styles.articleBody}>
+        <View style={styles.feedList}>
+          {filteredTips.map((tip) => (
+            <TouchableOpacity
+              key={tip.id}
+              style={[styles.articleCard, { backgroundColor: colors.card }]}
+              activeOpacity={0.85}
+              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+            >
+              <View style={[styles.articleTagBadge, { backgroundColor: tip.tagBg }]}>
+                <Text style={[styles.articleTagText, { color: tip.tagColor }]}>{tip.tag}</Text>
+              </View>
               <Text style={[styles.articleTitle, { color: colors.foreground }]}>{tip.title}</Text>
               <Text style={[styles.articleDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{tip.body}</Text>
               <View style={styles.articleFooter}>
-                <Text style={[styles.articleAuthor, { color: colors.mutedForeground }]}>By {tip.author}</Text>
-                <View style={[styles.levelBadge, { backgroundColor: colors.muted }]}>
-                  <Text style={[styles.levelText, { color: colors.mutedForeground }]}>{tip.level}</Text>
-                </View>
+                <Text style={[styles.articleAuthor, { color: colors.mutedForeground }]}>{tip.author}</Text>
+                <View style={styles.articleDot} />
+                <Text style={[styles.articleLevel, { color: colors.mutedForeground }]}>{tip.level}</Text>
               </View>
-            </View>
-          </View>
-        ))}
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {wallet && (
           <TouchableOpacity
@@ -231,110 +278,131 @@ export default function TeacherHome({ topPadding }: { topPadding?: number }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, gap: 22 },
+
+  /* ── Header ── */
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   hiLabel: { fontSize: 13, fontWeight: "500", marginBottom: 2 },
   hiRow: { flexDirection: "row", alignItems: "baseline" },
   hiName: { fontSize: 28, fontWeight: "400" },
   hiNameBold: { fontSize: 28, fontWeight: "800" },
-  avatarBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
-  avatarBtnText: { fontSize: 16, fontWeight: "800", color: "#fff" },
-  /* ── Hero Card ── */
-  heroCard: {
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
+  bellBtn: { position: "relative", padding: 4 },
+  notifDot: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  avatarBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingLeft: 22,
-    paddingRight: 0,
-    flexDirection: "row",
-    alignItems: "stretch",
-    overflow: "hidden",
-    minHeight: 170,
-  },
-  heroLeft: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingBottom: 4,
-  },
-  heroNum: {
-    fontSize: 72,
-    fontWeight: "900",
-    color: "#fff",
-    lineHeight: 76,
-  },
-  heroSub: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "rgba(255,255,255,0.9)",
-    lineHeight: 22,
-  },
-  heroRight: {
-    width: 160,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
-    paddingBottom: 20,
-    paddingRight: 16,
-  },
-  heroImgWrap: {
-    width: 148,
-    height: 118,
-  },
-  heroImg: {
-    width: 148,
-    height: 118,
-  },
-  heroBtn: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    alignSelf: "stretch",
-    alignItems: "center",
-  },
-  heroBtnText: { fontSize: 14, fontWeight: "700", color: "#2F80ED", whiteSpace: "nowrap" } as any,
-  catGrid: { flexDirection: "row", gap: 10 },
-  catCard: {
-    flex: 1,
-    borderRadius: 18,
-    backgroundColor: "#fff",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  catCardIll: {
-    paddingTop: 18,
-    paddingBottom: 14,
-    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 100,
+    borderWidth: 2,
   },
-  catCardImg: { width: 70, height: 60 },
-  catCardLabel: {
-    backgroundColor: "#fff",
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+  avatarBtnText: { fontSize: 15, fontWeight: "800", color: "#fff" },
+
+  /* ── Compact Hero Card ── */
+  heroCard: {
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 0,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    height: 80,
+    overflow: "hidden",
   },
-  catCardText: { fontSize: 13, fontWeight: "700", textAlign: "center" },
-  updatesSection: { gap: 14 },
-  updatesTitle: { fontSize: 24, fontWeight: "800" },
+  heroLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  heroCountBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroCountText: { fontSize: 22, fontWeight: "900", color: "#fff" },
+  heroSubLine: { fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.9)", lineHeight: 20 },
+  heroBtn: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 50,
+  },
+  heroBtnText: { fontSize: 13, fontWeight: "700", color: "#2F80ED" },
+
+  /* ── Section ── */
+  section: { gap: 14 },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sectionTitle: { fontSize: 18, fontWeight: "800" },
+  viewAll: { fontSize: 14, fontWeight: "600" },
+
+  /* ── Quick Actions ── */
+  actionList: { gap: 10 },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 14,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionText: { flex: 1, gap: 2 },
+  actionLabel: { fontSize: 16, fontWeight: "700" },
+  actionSub: { fontSize: 12 },
+  chevronBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* ── Filter chips ── */
   filterRow: { marginHorizontal: -4 },
   filterChip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, marginHorizontal: 4 },
   filterChipText: { fontSize: 14, fontWeight: "600" },
-  articleCard: { borderRadius: 18, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  articleBanner: { height: 130, alignItems: "center", justifyContent: "center" },
-  articleBannerEmoji: { fontSize: 60 },
-  articleBody: { padding: 16, gap: 6 },
-  articleTitle: { fontSize: 17, fontWeight: "800" },
-  articleDesc: { fontSize: 14, lineHeight: 21 },
-  articleFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
-  articleAuthor: { fontSize: 13 },
-  levelBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  levelText: { fontSize: 12, fontWeight: "600" },
+
+  /* ── Article cards (text-only) ── */
+  feedList: { gap: 12 },
+  articleCard: {
+    borderRadius: 18,
+    padding: 16,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  articleTagBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6 },
+  articleTagText: { fontSize: 11, fontWeight: "700" },
+  articleTitle: { fontSize: 16, fontWeight: "800", lineHeight: 22 },
+  articleDesc: { fontSize: 13, lineHeight: 20 },
+  articleFooter: { flexDirection: "row", alignItems: "center", gap: 6 },
+  articleAuthor: { fontSize: 12, fontWeight: "500" },
+  articleDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#CBD5E1" },
+  articleLevel: { fontSize: 12, fontWeight: "500" },
+
+  /* ── Wallet card ── */
   walletCard: { borderRadius: 16, borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "center" },
   walletLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   walletEmoji: { fontSize: 28 },

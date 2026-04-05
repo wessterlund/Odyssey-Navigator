@@ -41,6 +41,7 @@ pnpm workspace monorepo using TypeScript. This is the **Odyssey** project — an
 - **Rewards**: AI-suggested personalized rewards, progress tracking, redeeming
 - **Adaptive Learning**: Performance tracking after each adventure
 - **Voyage Path**: Structured intervention plan — multi-step wizard to create a plan linking adventures + rewards with scheduling, launch/execution with evidence logging (video), and full status lifecycle (draft → active → completed)
+- **AI IEP Generator**: Built into the Voyage Path create wizard (Step 1 toggle). Uses the learner's profile + additional context (communication level, environment, priority behaviors) to generate a full clinical IEP via GPT-5.2: Priority Map (Tier 1/2/3), measurable IEP Goals per domain (communication/behavior/social/ADL/academic/motor), evidence-based interventions, data collection methods, generalization targets, Behavior Intervention Plan (BIP), and Assistive Technology recommendations. IEP data stored as JSONB in voyage_paths.iep_data and displayed in the voyage path detail view.
 
 ## Database Tables
 
@@ -67,6 +68,7 @@ pnpm workspace monorepo using TypeScript. This is the **Odyssey** project — an
 - `POST /api/ai/copilot-tip` — real-time support tip during child mode
 - `POST /api/ai/adaptive-suggestions` — post-adventure improvement suggestions
 - `POST /api/ai/performance` — track step performance data
+- `POST /api/ai/generate-iep` — generate a full clinical IEP plan (priority map, goals, BIP, AT recs) from learner profile
 - `GET /api/voyage-paths/learner/:learnerId` — list voyage paths for a learner
 - `GET/PUT/DELETE /api/voyage-paths/:id` — manage a voyage path (includes adventures, rewards, logs)
 - `PUT /api/voyage-paths/:id/status` — change status (draft/active/completed)

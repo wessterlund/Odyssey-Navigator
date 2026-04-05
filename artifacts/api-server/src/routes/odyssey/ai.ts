@@ -214,6 +214,111 @@ Return ONLY valid JSON:
   }
 });
 
+router.post("/generate-iep", async (req, res) => {
+  const { learnerId, communicationLevel, environment, priorityBehaviors, additionalContext } = req.body;
+  if (!learnerId) return res.status(400).json({ error: "learnerId required" });
+
+  const [learner] = await db.select().from(learnersTable).where(eq(learnersTable.id, learnerId));
+  if (!learner) return res.status(404).json({ error: "Learner not found" });
+
+  const age = calcAge(learner.birthday);
+
+  const systemPrompt = `You are a licensed special education specialist and board-certified behavior analyst (BCBA) with deep expertise in creating Individualized Education Plans (IEPs) for children with autism spectrum disorder and other developmental disabilities.
+
+Your IEPs are:
+- Evidence-based, drawing from ABA, PECS, PRT, AAC, and sensory integration frameworks
+- Written in observable, measurable behavioral terms
+- Organized by priority tier (immediate needs first)
+- Practical and actionable for parents, teachers, and therapists
+- Sensitive to the child's strengths, interests, and motivators
+
+Generate a comprehensive, personalized IEP plan based on the learner profile provided.`;
+
+  const userMessage = `Learner Profile:
+- Name: ${learner.name}
+- Age: ${age} years old
+- Diagnosis: ${learner.diagnosis || "Not specified"}
+- Communication Level: ${communicationLevel || "Not specified"}
+- Therapies: ${(learner.therapies || []).join(", ") || "None specified"}
+- Strengths / Capabilities: ${(learner.capabilities || []).join(", ") || "Not specified"}
+- Interests: ${(learner.interests || []).join(", ") || "Not specified"}
+- Favorites: ${(learner.favorites || []).join(", ") || "Not specified"}
+- Challenges: ${(learner.challenges || []).join(", ") || "Not specified"}
+- Current Learning Goals: ${(learner.learningGoals || []).join(", ") || "Not specified"}
+- Long-term Goals: ${(learner.longTermGoals || []).join(", ") || "Not specified"}
+- Priority Behaviors to Address: ${priorityBehaviors || "Not specified"}
+- Learning Environment: ${environment || "School and home"}
+- Additional Context: ${additionalContext || "None"}
+
+Return ONLY valid JSON with this exact structure:
+{
+  "missionTitle": "A motivating, specific title for this IEP voyage path (e.g., 'Building Communication & Independence')",
+  "missionDescription": "A clear, jargon-free description of the IEP's overall goals and approach for this child (2-3 sentences, written for parents and teachers)",
+  "priorityMap": {
+    "tier1": ["Immediate, highest-priority skill or goal (observable, specific)"],
+    "tier2": ["Important secondary goal to address within 3-6 months"],
+    "tier3": ["Generalization or maintenance goal for after tier1/2 mastery"]
+  },
+  "goals": [
+    {
+      "id": "G1",
+      "domain": "communication",
+      "shortTitle": "Brief goal title",
+      "behavior": "Observable, measurable behavior (what the child will DO)",
+      "condition": "Under what conditions / given what prompt level",
+      "criterion": "Mastery criterion (e.g., '80% accuracy across 3 consecutive sessions with 2 different adults')",
+      "interventions": ["Evidence-based strategy 1", "Strategy 2"],
+      "dataCollection": "How to collect data (e.g., 'trial-by-trial data using partial interval recording')",
+      "generalization": ["Generalization target: different setting", "Generalization target: different communication partner"]
+    }
+  ],
+  "behaviorPlan": {
+    "targetBehavior": "Specific description of the challenging behavior to reduce (topography, frequency, intensity)",
+    "antecedents": ["Common antecedent / trigger 1", "Trigger 2"],
+    "functions": ["escape", "attention"],
+    "replacementBehaviors": ["Functionally equivalent replacement behavior 1"],
+    "preventionStrategies": ["Proactive strategy to prevent the behavior 1"],
+    "reinforcementStrategies": ["Specific reinforcement schedule and type 1"]
+  },
+  "atRecommendations": [
+    {
+      "tool": "Tool or technology name",
+      "purpose": "Why this AT is recommended for this child",
+      "implementation": "Specific implementation guidance"
+    }
+  ]
+}
+
+Rules:
+- Generate 3-6 IEP goals spanning multiple domains (communication, behavior, social, ADL, academic, motor)
+- ALL goals must be written in observable, measurable terms (no vague language like 'will improve')
+- Ground every recommendation in the child's specific interests and strengths
+- Include the behavior plan only if there are challenging behaviors to address
+- Include 2-3 AT recommendations appropriate for the child's communication level
+- Tier 1 should have 2-3 items, Tier 2 have 2-3 items, Tier 3 have 2-3 items`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    max_completion_tokens: 4096,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) return res.status(500).json({ error: "No response from AI" });
+
+  try {
+    const iep = JSON.parse(content);
+    iep.generatedAt = new Date().toISOString();
+    res.json(iep);
+  } catch {
+    res.status(500).json({ error: "Failed to parse IEP response" });
+  }
+});
+
 router.post("/performance", async (req, res) => {
   const parsed = insertPerformanceSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error });

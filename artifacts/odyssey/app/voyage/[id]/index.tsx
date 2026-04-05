@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -41,6 +40,35 @@ interface VoyageLog {
   createdAt: string;
 }
 
+interface IEPGoal {
+  id: string;
+  domain: string;
+  shortTitle: string;
+  behavior: string;
+  condition: string;
+  criterion: string;
+  interventions: string[];
+  dataCollection: string;
+  generalization: string[];
+}
+
+interface IEPData {
+  missionTitle: string;
+  missionDescription: string;
+  priorityMap: { tier1: string[]; tier2: string[]; tier3: string[] };
+  goals: IEPGoal[];
+  behaviorPlan?: {
+    targetBehavior: string;
+    antecedents: string[];
+    functions: string[];
+    replacementBehaviors: string[];
+    preventionStrategies: string[];
+    reinforcementStrategies: string[];
+  };
+  atRecommendations?: { tool: string; purpose: string; implementation: string }[];
+  generatedAt: string;
+}
+
 interface VoyagePath {
   id: number;
   learnerId: number;
@@ -56,6 +84,7 @@ interface VoyagePath {
   adventures: VoyageAdventure[];
   rewards: VoyageReward[];
   logs: VoyageLog[];
+  iepData?: IEPData;
   createdAt: string;
 }
 
@@ -223,6 +252,11 @@ export default function VoyagePathScreen() {
               <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>No mission description provided.</Text>
             )}
           </View>
+
+          {/* IEP Plan */}
+          {voyage.iepData && (
+            <IEPSection iepData={voyage.iepData} colors={colors} />
+          )}
 
           {/* Progress */}
           {voyage.status === "active" && voyage.adventures.length > 0 && (
@@ -453,6 +487,287 @@ export default function VoyagePathScreen() {
     </View>
   );
 }
+
+const DOMAIN_ICONS: Record<string, string> = {
+  communication: "chatbubble-ellipses-outline",
+  behavior: "warning-outline",
+  social: "people-outline",
+  adl: "home-outline",
+  academic: "book-outline",
+  motor: "body-outline",
+};
+
+const DOMAIN_COLORS: Record<string, string> = {
+  communication: "#2F80ED",
+  behavior: "#EF4444",
+  social: "#8B5CF6",
+  adl: "#10B981",
+  academic: "#F59E0B",
+  motor: "#06B6D4",
+};
+
+function IEPSection({ iepData, colors }: { iepData: IEPData; colors: any }) {
+  const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [showBP, setShowBP] = useState(false);
+  const [showAT, setShowAT] = useState(false);
+
+  return (
+    <View>
+      {/* IEP Header */}
+      <View style={[iepStyles.iepHeader, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}25` }]}>
+        <View style={iepStyles.iepHeaderTop}>
+          <Ionicons name="sparkles" size={18} color={colors.primary} />
+          <Text style={[iepStyles.iepHeaderTitle, { color: colors.primary }]}>AI IEP Plan</Text>
+          <View style={[iepStyles.iepBadge, { backgroundColor: colors.primary }]}>
+            <Text style={iepStyles.iepBadgeText}>{iepData.goals.length} goals</Text>
+          </View>
+        </View>
+        <Text style={[iepStyles.iepGenDate, { color: colors.mutedForeground }]}>
+          Generated {new Date(iepData.generatedAt).toLocaleDateString()}
+        </Text>
+      </View>
+
+      {/* Priority Map */}
+      <View style={iepStyles.sectionBlock}>
+        <Text style={[iepStyles.blockLabel, { color: colors.mutedForeground }]}>Priority Map</Text>
+        {[
+          { key: "tier1", label: "Tier 1 — Immediate Priority", color: "#EF4444", bg: "#FEF2F2" },
+          { key: "tier2", label: "Tier 2 — Important", color: "#F59E0B", bg: "#FFFBEB" },
+          { key: "tier3", label: "Tier 3 — Generalization", color: "#10B981", bg: "#F0FDF4" },
+        ].map(({ key, label, color, bg }) => {
+          const items = (iepData.priorityMap as any)[key] as string[];
+          if (!items?.length) return null;
+          return (
+            <View key={key} style={[iepStyles.tierCard, { backgroundColor: bg, borderLeftColor: color }]}>
+              <Text style={[iepStyles.tierLabel, { color }]}>{label}</Text>
+              {items.map((item, i) => (
+                <View key={i} style={iepStyles.tierItemRow}>
+                  <View style={[iepStyles.tierDot, { backgroundColor: color }]} />
+                  <Text style={[iepStyles.tierItemText, { color: colors.foreground }]}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          );
+        })}
+      </View>
+
+      {/* IEP Goals */}
+      <View style={iepStyles.sectionBlock}>
+        <Text style={[iepStyles.blockLabel, { color: colors.mutedForeground }]}>IEP Goals</Text>
+        {iepData.goals.map((goal) => {
+          const domColor = DOMAIN_COLORS[goal.domain] ?? colors.primary;
+          const domIcon = DOMAIN_ICONS[goal.domain] ?? "flag-outline";
+          const expanded = expandedGoal === goal.id;
+          return (
+            <View key={goal.id} style={[iepStyles.goalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TouchableOpacity
+                style={iepStyles.goalHeader}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setExpandedGoal(expanded ? null : goal.id);
+                }}
+              >
+                <View style={[iepStyles.domainBadge, { backgroundColor: `${domColor}18` }]}>
+                  <Ionicons name={domIcon as any} size={13} color={domColor} />
+                  <Text style={[iepStyles.domainText, { color: domColor }]}>{goal.domain}</Text>
+                </View>
+                <Text style={[iepStyles.goalTitle, { color: colors.foreground, flex: 1, marginLeft: 8 }]}>
+                  {goal.shortTitle}
+                </Text>
+                <Ionicons
+                  name={expanded ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={colors.mutedForeground}
+                />
+              </TouchableOpacity>
+
+              {expanded && (
+                <View style={[iepStyles.goalBody, { borderTopColor: colors.border }]}>
+                  <IEPField label="Behavior" value={goal.behavior} colors={colors} />
+                  <IEPField label="Condition" value={goal.condition} colors={colors} />
+                  <IEPField label="Mastery Criterion" value={goal.criterion} colors={colors} accent={domColor} />
+                  <IEPField label="Data Collection" value={goal.dataCollection} colors={colors} />
+
+                  {goal.interventions.length > 0 && (
+                    <View style={iepStyles.fieldBlock}>
+                      <Text style={[iepStyles.fieldLabel, { color: colors.mutedForeground }]}>Evidence-Based Interventions</Text>
+                      {goal.interventions.map((iv, i) => (
+                        <View key={i} style={iepStyles.bulletRow}>
+                          <View style={[iepStyles.bullet, { backgroundColor: domColor }]} />
+                          <Text style={[iepStyles.bulletText, { color: colors.foreground }]}>{iv}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {goal.generalization.length > 0 && (
+                    <View style={iepStyles.fieldBlock}>
+                      <Text style={[iepStyles.fieldLabel, { color: colors.mutedForeground }]}>Generalization Targets</Text>
+                      {goal.generalization.map((g, i) => (
+                        <View key={i} style={iepStyles.bulletRow}>
+                          <Ionicons name="arrow-forward-outline" size={12} color={colors.mutedForeground} />
+                          <Text style={[iepStyles.bulletText, { color: colors.foreground }]}>{g}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Behavior Plan */}
+      {iepData.behaviorPlan && (
+        <View style={iepStyles.sectionBlock}>
+          <TouchableOpacity
+            style={[iepStyles.collapsibleHeader, { backgroundColor: "#FEF2F2", borderColor: "#FECACA" }]}
+            onPress={() => setShowBP((v) => !v)}
+          >
+            <Ionicons name="shield-checkmark-outline" size={16} color="#EF4444" />
+            <Text style={[iepStyles.collapsibleTitle, { color: "#DC2626", flex: 1 }]}>Behavior Intervention Plan</Text>
+            <Ionicons name={showBP ? "chevron-up" : "chevron-down"} size={16} color="#EF4444" />
+          </TouchableOpacity>
+          {showBP && (
+            <View style={[iepStyles.collapsibleBody, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <IEPField label="Target Behavior" value={iepData.behaviorPlan.targetBehavior} colors={colors} />
+              <BPList label="Antecedents / Triggers" items={iepData.behaviorPlan.antecedents} colors={colors} dotColor="#EF4444" />
+              <BPList label="Behavior Functions" items={iepData.behaviorPlan.functions} colors={colors} dotColor="#F59E0B" capitalize />
+              <BPList label="Replacement Behaviors" items={iepData.behaviorPlan.replacementBehaviors} colors={colors} dotColor="#10B981" />
+              <BPList label="Prevention Strategies" items={iepData.behaviorPlan.preventionStrategies} colors={colors} dotColor="#2F80ED" />
+              <BPList label="Reinforcement Strategies" items={iepData.behaviorPlan.reinforcementStrategies} colors={colors} dotColor="#8B5CF6" />
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* AT Recommendations */}
+      {iepData.atRecommendations && iepData.atRecommendations.length > 0 && (
+        <View style={iepStyles.sectionBlock}>
+          <TouchableOpacity
+            style={[iepStyles.collapsibleHeader, { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" }]}
+            onPress={() => setShowAT((v) => !v)}
+          >
+            <Ionicons name="hardware-chip-outline" size={16} color="#10B981" />
+            <Text style={[iepStyles.collapsibleTitle, { color: "#059669", flex: 1 }]}>
+              Assistive Technology ({iepData.atRecommendations.length})
+            </Text>
+            <Ionicons name={showAT ? "chevron-up" : "chevron-down"} size={16} color="#10B981" />
+          </TouchableOpacity>
+          {showAT && (
+            <View style={[iepStyles.collapsibleBody, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {iepData.atRecommendations.map((at, i) => (
+                <View key={i} style={[iepStyles.atCard, { borderColor: colors.border }]}>
+                  <Text style={[iepStyles.atTool, { color: colors.foreground }]}>{at.tool}</Text>
+                  <Text style={[iepStyles.atPurpose, { color: colors.mutedForeground }]}>{at.purpose}</Text>
+                  <Text style={[iepStyles.atImpl, { color: colors.foreground }]}>{at.implementation}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function IEPField({ label, value, colors, accent }: { label: string; value: string; colors: any; accent?: string }) {
+  return (
+    <View style={iepStyles.fieldBlock}>
+      <Text style={[iepStyles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[iepStyles.fieldValue, { color: accent ?? colors.foreground }]}>{value}</Text>
+    </View>
+  );
+}
+
+function BPList({ label, items, colors, dotColor, capitalize }: { label: string; items: string[]; colors: any; dotColor: string; capitalize?: boolean }) {
+  return (
+    <View style={iepStyles.fieldBlock}>
+      <Text style={[iepStyles.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      {items.map((item, i) => (
+        <View key={i} style={iepStyles.bulletRow}>
+          <View style={[iepStyles.bullet, { backgroundColor: dotColor }]} />
+          <Text style={[iepStyles.bulletText, { color: colors.foreground, textTransform: capitalize ? "capitalize" : "none" }]}>
+            {item}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const iepStyles = StyleSheet.create({
+  iepHeader: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 12,
+    gap: 4,
+  },
+  iepHeaderTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iepHeaderTitle: { fontSize: 16, fontWeight: "800", flex: 1 },
+  iepBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  iepBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  iepGenDate: { fontSize: 12 },
+  sectionBlock: { marginBottom: 12, gap: 8 },
+  blockLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 2 },
+  tierCard: {
+    borderLeftWidth: 3,
+    borderRadius: 10,
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  tierLabel: { fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 4 },
+  tierItemRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  tierDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6, flexShrink: 0 },
+  tierItemText: { fontSize: 14, lineHeight: 20, flex: 1 },
+  goalCard: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
+  goalHeader: { flexDirection: "row", alignItems: "center", padding: 14, gap: 6 },
+  domainBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  domainText: { fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
+  goalTitle: { fontSize: 14, fontWeight: "700" },
+  goalBody: { borderTopWidth: 1, padding: 14, gap: 12 },
+  fieldBlock: { gap: 4 },
+  fieldLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
+  fieldValue: { fontSize: 14, lineHeight: 20 },
+  bulletRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, flexShrink: 0 },
+  bulletText: { fontSize: 14, lineHeight: 20, flex: 1 },
+  collapsibleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  collapsibleTitle: { fontSize: 14, fontWeight: "700" },
+  collapsibleBody: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    gap: 14,
+    marginTop: 4,
+  },
+  atCard: {
+    borderBottomWidth: 1,
+    paddingBottom: 12,
+    gap: 4,
+  },
+  atTool: { fontSize: 15, fontWeight: "700" },
+  atPurpose: { fontSize: 13, lineHeight: 18 },
+  atImpl: { fontSize: 13, lineHeight: 18 },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

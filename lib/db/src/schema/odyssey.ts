@@ -111,6 +111,47 @@ export const performanceTrackingTable = pgTable("performance_tracking", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export interface IEPGoal {
+  id: string;
+  domain: string;
+  shortTitle: string;
+  behavior: string;
+  condition: string;
+  criterion: string;
+  interventions: string[];
+  dataCollection: string;
+  generalization: string[];
+}
+
+export interface IEPBehaviorPlan {
+  targetBehavior: string;
+  antecedents: string[];
+  functions: string[];
+  replacementBehaviors: string[];
+  preventionStrategies: string[];
+  reinforcementStrategies: string[];
+}
+
+export interface IEPATRecommendation {
+  tool: string;
+  purpose: string;
+  implementation: string;
+}
+
+export interface IEPData {
+  missionTitle: string;
+  missionDescription: string;
+  priorityMap: {
+    tier1: string[];
+    tier2: string[];
+    tier3: string[];
+  };
+  goals: IEPGoal[];
+  behaviorPlan?: IEPBehaviorPlan;
+  atRecommendations?: IEPATRecommendation[];
+  generatedAt: string;
+}
+
 export const voyagePathsTable = pgTable("voyage_paths", {
   id: serial("id").primaryKey(),
   learnerId: integer("learner_id")
@@ -126,6 +167,7 @@ export const voyagePathsTable = pgTable("voyage_paths", {
   visibility: text("visibility").$type<"public" | "private">().default("private"),
   commentsEnabled: boolean("comments_enabled").default(true),
   status: text("status").$type<"draft" | "active" | "completed">().default("draft").notNull(),
+  iepData: jsonb("iep_data").$type<IEPData>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

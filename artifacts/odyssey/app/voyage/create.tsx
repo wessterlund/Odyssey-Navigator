@@ -88,6 +88,29 @@ export default function VoyagePathCreateScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Local adventure list — includes newly generated IEP adventures
+  const [localAdventures, setLocalAdventures] = useState<Adventure[]>(adventures);
+  useEffect(() => {
+    setLocalAdventures((prev) => {
+      const existingIds = new Set(adventures.map((a) => a.id));
+      const newlyGenerated = prev.filter((a) => !existingIds.has(a.id));
+      return [...adventures, ...newlyGenerated];
+    });
+  }, [adventures]);
+
+  const onAdventureGenerated = (adv: Adventure) => {
+    setLocalAdventures((prev) => {
+      if (prev.some((a) => a.id === adv.id)) return prev;
+      return [...prev, adv];
+    });
+    setState((prev) => ({
+      ...prev,
+      adventureIds: prev.adventureIds.includes(adv.id)
+        ? prev.adventureIds
+        : [...prev.adventureIds, adv.id],
+    }));
+  };
+
   const update = (partial: Partial<WizardState>) =>
     setState((prev) => ({ ...prev, ...partial }));
 
@@ -163,10 +186,12 @@ export default function VoyagePathCreateScreen() {
         return (
           <Step2Adventures
             state={state}
-            adventures={adventures}
+            adventures={localAdventures}
             toggleAdventure={toggleAdventure}
             colors={colors}
             onCreateNew={() => router.push("/adventure/create")}
+            currentLearner={currentLearner}
+            onAdventureGenerated={onAdventureGenerated}
           />
         );
       case 3:
@@ -619,11 +644,179 @@ function IEPPreview({ iepData, colors }: { iepData: IEPData; colors: any }) {
 }
 
 // ─── Step 2: Adventures ───────────────────────────────────────────────────────
-function Step2Adventures({ state, adventures, toggleAdventure, colors, onCreateNew }: any) {
+const DOMAIN_ICONS_WIZ: Record<string, string> = {
+  communication: "chatbubble-ellipses-outline",
+  behavior: "warning-outline",
+  social: "people-outline",
+  adl: "home-outline",
+  academic: "book-outline",
+  motor: "body-outline",
+};
+
+const DOMAIN_COLORS_WIZ: Record<string, string> = {
+  communication: "#2F80ED",
+  behavior: "#EF4444",
+  social: "#8B5CF6",
+  adl: "#10B981",
+  academic: "#F59E0B",
+  motor: "#06B6D4",
+};
+
+function Step2Adventures({ state, adventures, toggleAdventure, colors, onCreateNew, currentLearner, onAdventureGenerated }: any) {
+  const [generatingGoals, setGeneratingGoals] = useState<Record<string, boolean>>({});
+  const [generatedGoals, setGeneratedGoals] = useState<Record<string, number>>({}); // goalId → adventureId
+
+  const generateForGoal = async (goal: IEPGoal) => {
+    if (!currentLearner || generatingGoals[goal.id]) return;
+    setGeneratingGoals((prev) => ({ ...prev, [goal.id]: true }));
+    try {
+      // Step 1: generate adventure content from AI
+      const aiRes = await fetch(`${apiBase()}/ai/generate-adventure`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          learnerId: currentLearner.id,
+          goal: `${goal.shortTitle}: ${goal.behavior} (${goal.condition}). Criterion: ${goal.criterion}`,
+        }),
+      });
+      if (!aiRes.ok) throw new Error("AI generation failed");
+      const aiAdv = await aiRes.json();
+
+      // Step 2: save the adventure to DB
+      const saveRes = await fetch(`${apiBase()}/adventures`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          learnerId: currentLearner.id,
+          title: aiAdv.title,
+          description: aiAdv.description || null,
+          coinsPerStep: aiAdv.coinsPerStep ?? 2,
+          completionBonus: aiAdv.completionBonus ?? 5,
+          steps: (aiAdv.steps || []).map((s: any) => ({
+            instruction: s.instruction,
+            tip: s.tip || null,
+          })),
+        }),
+      });
+      if (!saveRes.ok) throw new Error("Save failed");
+      const saved = await saveRes.json();
+
+      // Reconstruct adventure with steps for local state
+      const newAdv = {
+        ...saved,
+        steps: (aiAdv.steps || []).map((s: any, i: number) => ({
+          id: i,
+          adventureId: saved.id,
+          instruction: s.instruction,
+          tip: s.tip || null,
+          order: i,
+        })),
+      };
+
+      setGeneratedGoals((prev) => ({ ...prev, [goal.id]: saved.id }));
+      onAdventureGenerated(newAdv);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      // fail silently — user can retry
+    } finally {
+      setGeneratingGoals((prev) => ({ ...prev, [goal.id]: false }));
+    }
+  };
+
+  const hasIEP = !!state.iepData && state.iepData.goals?.length > 0;
+
   return (
     <View style={styles.stepContent}>
-      <Text style={[styles.stepDesc, { color: colors.mutedForeground }]}>
-        Select existing adventures to include in this voyage path, or create new ones.
+      {/* IEP Recommended Adventures */}
+      {hasIEP && (
+        <View style={[styles.iepRecommendBlock, { borderColor: `${colors.primary}30` }]}>
+          <View style={styles.iepRecommendHeader}>
+            <Ionicons name="sparkles" size={16} color={colors.primary} />
+            <Text style={[styles.iepRecommendTitle, { color: colors.primary }]}>IEP-Recommended Adventures</Text>
+          </View>
+          <Text style={[styles.iepRecommendSub, { color: colors.mutedForeground }]}>
+            Generate a targeted adventure for each IEP goal — it will be created and auto-selected.
+          </Text>
+
+          {state.iepData.goals.map((goal: IEPGoal) => {
+            const domColor = DOMAIN_COLORS_WIZ[goal.domain] ?? colors.primary;
+            const domIcon = DOMAIN_ICONS_WIZ[goal.domain] ?? "flag-outline";
+            const isGenerating = generatingGoals[goal.id];
+            const generatedAdvId = generatedGoals[goal.id];
+            const isGenerated = !!generatedAdvId;
+            const isSelected = generatedAdvId && state.adventureIds.includes(generatedAdvId);
+
+            return (
+              <View
+                key={goal.id}
+                style={[
+                  styles.iepGoalCard,
+                  {
+                    backgroundColor: isGenerated ? `${domColor}08` : colors.card,
+                    borderColor: isGenerated ? `${domColor}40` : colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.iepGoalCardTop}>
+                  <View style={[styles.domainPill, { backgroundColor: `${domColor}18` }]}>
+                    <Ionicons name={domIcon as any} size={12} color={domColor} />
+                    <Text style={[styles.domainPillText, { color: domColor }]}>{goal.domain}</Text>
+                  </View>
+                  {isGenerated && (
+                    <View style={styles.generatedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                      <Text style={[styles.generatedBadgeText, { color: "#10B981" }]}>Added</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={[styles.iepGoalTitle, { color: colors.foreground }]}>{goal.shortTitle}</Text>
+                <Text style={[styles.iepGoalDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
+                  {goal.behavior}
+                </Text>
+
+                <TouchableOpacity
+                  style={[
+                    styles.generateGoalBtn,
+                    {
+                      backgroundColor: isGenerated
+                        ? `${domColor}15`
+                        : isGenerating
+                        ? colors.border
+                        : domColor,
+                    },
+                  ]}
+                  disabled={isGenerating}
+                  onPress={() => generateForGoal(goal)}
+                >
+                  {isGenerating ? (
+                    <View style={styles.generateGoalBtnInner}>
+                      <ActivityIndicator size="small" color={colors.mutedForeground} />
+                      <Text style={[styles.generateGoalBtnText, { color: colors.mutedForeground }]}>
+                        Generating…
+                      </Text>
+                    </View>
+                  ) : isGenerated ? (
+                    <View style={styles.generateGoalBtnInner}>
+                      <Ionicons name="refresh-outline" size={15} color={domColor} />
+                      <Text style={[styles.generateGoalBtnText, { color: domColor }]}>Regenerate</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.generateGoalBtnInner}>
+                      <Ionicons name="sparkles" size={15} color="#fff" />
+                      <Text style={[styles.generateGoalBtnText, { color: "#fff" }]}>Generate Adventure</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Existing adventures */}
+      <Text style={[styles.stepDesc, { color: colors.mutedForeground, marginTop: hasIEP ? 8 : 0 }]}>
+        {hasIEP ? "Or select from existing adventures:" : "Select existing adventures to include in this voyage path, or create new ones."}
       </Text>
 
       {adventures.length === 0 ? (
@@ -1074,6 +1267,45 @@ const styles = StyleSheet.create({
   reviewItem: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 6 },
   reviewItemText: { fontSize: 14, flex: 1 },
   reviewEmpty: { fontSize: 14 },
+  // IEP recommendation block (Step 2)
+  iepRecommendBlock: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    backgroundColor: "transparent",
+  },
+  iepRecommendHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  iepRecommendTitle: { fontSize: 15, fontWeight: "800" },
+  iepRecommendSub: { fontSize: 13, lineHeight: 18, marginBottom: 14 },
+  iepGoalCard: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  iepGoalCardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  domainPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  domainPillText: { fontSize: 11, fontWeight: "800", textTransform: "uppercase" },
+  generatedBadge: { flexDirection: "row", alignItems: "center", gap: 4 },
+  generatedBadgeText: { fontSize: 12, fontWeight: "700" },
+  iepGoalTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
+  iepGoalDesc: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  generateGoalBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  generateGoalBtnInner: { flexDirection: "row", alignItems: "center", gap: 7 },
+  generateGoalBtnText: { fontSize: 14, fontWeight: "700" },
   // AI IEP styles
   aiToggleCard: {
     flexDirection: "row",

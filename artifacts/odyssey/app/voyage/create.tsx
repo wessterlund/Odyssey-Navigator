@@ -163,7 +163,11 @@ export default function VoyagePathCreateScreen() {
       if (!res.ok) throw new Error("Failed to save voyage path");
       const vp = await res.json();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace(`/voyage/${vp.id}`);
+      if (status === "active") {
+        router.replace(`/voyage/${vp.id}/preview`);
+      } else {
+        router.replace(`/voyage/${vp.id}`);
+      }
     } catch (e: any) {
       setError(e.message ?? "Something went wrong");
     } finally {

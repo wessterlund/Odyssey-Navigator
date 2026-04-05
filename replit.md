@@ -36,12 +36,23 @@ pnpm workspace monorepo using TypeScript. This is the **Odyssey** project — an
 - **Learner Profile**: Multi-step creation form (name, birthday, diagnosis, therapies, interests, capabilities, goals)
 - **Adventures**: Create AI-generated or manual step-by-step learning activities
 - **Child Mode**: Fullscreen step-by-step execution with coin earning
-- **AI Co-pilot**: Real-time tips when a child struggles with a step
+- **AI Co-pilot**: Real-time tips when a child struggles with a step (uses adaptive rules: increase prompts if failing, add time delay if prompt-dependent)
 - **Wallet**: Coin tracking with transaction history
 - **Rewards**: AI-suggested personalized rewards, progress tracking, redeeming
-- **Adaptive Learning**: Performance tracking after each adventure
+- **Adaptive Learning**: Performance tracking after each adventure — adaptive-suggestions endpoint uses BCBA rules (failing/succeeding/prompt-dependent signals)
 - **Voyage Path**: Structured intervention plan — multi-step wizard to create a plan linking adventures + rewards with scheduling, launch/execution with evidence logging (video), and full status lifecycle (draft → active → completed)
 - **AI IEP Generator**: Built into the Voyage Path create wizard (Step 1 toggle). Uses the learner's profile + additional context (communication level, environment, priority behaviors) to generate a full clinical IEP via GPT-5.2: Priority Map (Tier 1/2/3), measurable IEP Goals per domain (communication/behavior/social/ADL/academic/motor), evidence-based interventions, data collection methods, generalization targets, Behavior Intervention Plan (BIP), and Assistive Technology recommendations. IEP data stored as JSONB in voyage_paths.iep_data and displayed in the voyage path detail view.
+
+## Clinical AI Framework (BCBA-Level)
+
+All AI generation is now clinically structured per BCBA standards:
+- **generate-adventure**: Returns TEACCH structure (environment, visual schedule, work system), task-analyzed steps with per-step prompt levels (Full Physical → Independent), prompting hierarchy + fading plan, reinforcement plan with saturation prevention, video modeling recommendation, generalization plan, data tracking metrics
+- **suggest-rewards**: Returns reinforcement schedule (continuous → intermittent), token economy recommendation, rotation strategy, per-reward type and reason linked to learner preferences
+- **copilot-tip**: Uses adaptive rules based on attempts/time — increases prompts if struggling, uses time delay if prompt-dependent
+- **adaptive-suggestions**: Detects failing/succeeding/prompt-dependent patterns from performance data and applies BCBA adaptive rules
+
+## Prompt Level Encoding
+Prompt levels are stored in the step `tip` field using the format `[Prompt: Full Physical] {support strategy}`. The adventure detail view parses this prefix to display color-coded badges: Full Physical (#EF4444), Partial Physical (#F97316), Gestural (#EAB308), Verbal (#3B82F6), Independent (#22C55E). No DB schema changes were required.
 
 ## Database Tables
 

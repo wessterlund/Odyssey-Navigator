@@ -18,6 +18,47 @@ import { CoinBadge } from "@/components/CoinBadge";
 import { MediaPreview } from "@/components/MediaPreview";
 import * as Haptics from "expo-haptics";
 
+const PROMPT_LEVEL_COLORS: Record<string, string> = {
+  "Full Physical": "#EF4444",
+  "Partial Physical": "#F97316",
+  "Gestural": "#EAB308",
+  "Verbal": "#3B82F6",
+  "Independent": "#22C55E",
+};
+
+function parsePromptLevel(tip: string): { promptLevel: string | null; tipText: string } {
+  const match = tip.match(/^\[Prompt:\s*([^\]]+)\]\s*(.*)/s);
+  if (match) {
+    return { promptLevel: match[1].trim(), tipText: match[2].trim() };
+  }
+  return { promptLevel: null, tipText: tip };
+}
+
+function PromptBadge({ level }: { level: string }) {
+  const color = PROMPT_LEVEL_COLORS[level] ?? "#6B7280";
+  return (
+    <View style={[badgeStyles.badge, { backgroundColor: color + "22", borderColor: color }]}>
+      <View style={[badgeStyles.dot, { backgroundColor: color }]} />
+      <Text style={[badgeStyles.text, { color }]}>{level}</Text>
+    </View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  text: { fontSize: 11, fontWeight: "700" },
+});
+
 export default function AdventureDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -34,9 +75,7 @@ export default function AdventureDetailScreen() {
   const [duplicating, setDuplicating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    fetchAdventure();
-  }, [id]);
+  useEffect(() => { fetchAdventure(); }, [id]);
 
   const fetchAdventure = async () => {
     setLoading(true);
@@ -116,6 +155,8 @@ export default function AdventureDetailScreen() {
 
   const totalCoins = (adventure.steps?.length ?? 0) * adventure.coinsPerStep + adventure.completionBonus;
 
+  const hasPromptLevels = (adventure.steps || []).some((s) => s.tip?.startsWith("[Prompt:"));
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topInset + 8 }]}>
@@ -123,11 +164,7 @@ export default function AdventureDetailScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={duplicateAdventure}
-            disabled={duplicating}
-            style={styles.headerActionBtn}
-          >
+          <TouchableOpacity onPress={duplicateAdventure} disabled={duplicating} style={styles.headerActionBtn}>
             {duplicating ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -135,11 +172,7 @@ export default function AdventureDetailScreen() {
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleTemplate} style={styles.headerActionBtn}>
-            <Ionicons
-              name={adventure.isTemplate ? "bookmark" : "bookmark-outline"}
-              size={22}
-              color={colors.primary}
-            />
+            <Ionicons name={adventure.isTemplate ? "bookmark" : "bookmark-outline"} size={22} color={colors.primary} />
           </TouchableOpacity>
           {confirmDelete ? (
             <View style={styles.inlineConfirm}>
@@ -183,27 +216,19 @@ export default function AdventureDetailScreen() {
         <View style={styles.metaRow}>
           <View style={[styles.metaItem, { backgroundColor: colors.secondary }]}>
             <Ionicons name="star" size={16} color={colors.coin} />
-            <Text style={[styles.metaText, { color: colors.primary }]}>
-              {adventure.coinsPerStep} per step
-            </Text>
+            <Text style={[styles.metaText, { color: colors.primary }]}>{adventure.coinsPerStep} per step</Text>
           </View>
           <View style={[styles.metaItem, { backgroundColor: colors.secondary }]}>
             <Ionicons name="trophy" size={16} color={colors.coin} />
-            <Text style={[styles.metaText, { color: colors.primary }]}>
-              +{adventure.completionBonus} bonus
-            </Text>
+            <Text style={[styles.metaText, { color: colors.primary }]}>+{adventure.completionBonus} bonus</Text>
           </View>
           <View style={[styles.metaItem, { backgroundColor: colors.coinBg }]}>
-            <Text style={[styles.metaText, { color: colors.coin }]}>
-              {totalCoins} total
-            </Text>
+            <Text style={[styles.metaText, { color: colors.coin }]}>{totalCoins} total</Text>
           </View>
           {(adventure.usageCount ?? 0) > 0 && (
             <View style={[styles.metaItem, { backgroundColor: colors.secondary }]}>
               <Ionicons name="refresh" size={14} color={colors.primary} />
-              <Text style={[styles.metaText, { color: colors.primary }]}>
-                Used {adventure.usageCount}x
-              </Text>
+              <Text style={[styles.metaText, { color: colors.primary }]}>Used {adventure.usageCount}x</Text>
             </View>
           )}
         </View>
@@ -214,46 +239,57 @@ export default function AdventureDetailScreen() {
           </Text>
         )}
 
+        {/* Prompt Level Legend */}
+        {hasPromptLevels && (
+          <View style={[styles.legendCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.legendHeader}>
+              <Ionicons name="hand-left" size={13} color="#8B5CF6" />
+              <Text style={[styles.legendTitle, { color: colors.foreground }]}>Prompt Level Guide</Text>
+            </View>
+            <View style={styles.legendRow}>
+              {Object.entries(PROMPT_LEVEL_COLORS).map(([level, color]) => (
+                <View key={level} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: color }]} />
+                  <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{level}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            {adventure.steps?.length ?? 0} Steps
+            {adventure.steps?.length ?? 0} Steps — Task Analysis
           </Text>
-          {(adventure.steps || []).map((step, index) => (
-            <View key={step.id ?? index} style={[styles.stepCard, { backgroundColor: colors.card }]}>
-              {step.mediaUrl ? (
-                <MediaPreview
-                  uri={step.mediaUrl}
-                  mediaType={step.mediaType ?? "image"}
-                  style={styles.stepMedia}
-                />
-              ) : null}
-              <View style={styles.stepCardContent}>
-                <View style={[styles.stepNum, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.stepNumText}>{index + 1}</Text>
-                </View>
-                <View style={styles.stepContentCol}>
-                  <Text style={[styles.stepText, { color: colors.foreground }]}>
-                    {step.instruction}
-                  </Text>
-                  {step.tip && (
-                    <View style={[styles.tipBox, { backgroundColor: colors.secondary }]}>
-                      <Ionicons name="information-circle" size={14} color={colors.primary} />
-                      <Text style={[styles.tipText, { color: colors.primary }]}>{step.tip}</Text>
-                    </View>
-                  )}
+          {(adventure.steps || []).map((step, index) => {
+            const parsed = step.tip ? parsePromptLevel(step.tip) : { promptLevel: null, tipText: "" };
+            return (
+              <View key={step.id ?? index} style={[styles.stepCard, { backgroundColor: colors.card }]}>
+                {step.mediaUrl ? (
+                  <MediaPreview uri={step.mediaUrl} mediaType={step.mediaType ?? "image"} style={styles.stepMedia} />
+                ) : null}
+                <View style={styles.stepCardContent}>
+                  <View style={[styles.stepNum, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.stepNumText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.stepContentCol}>
+                    <Text style={[styles.stepText, { color: colors.foreground }]}>{step.instruction}</Text>
+                    {parsed.promptLevel && <PromptBadge level={parsed.promptLevel} />}
+                    {parsed.tipText ? (
+                      <View style={[styles.tipBox, { backgroundColor: colors.secondary }]}>
+                        <Ionicons name="information-circle" size={14} color={colors.primary} />
+                        <Text style={[styles.tipText, { color: colors.primary }]}>{parsed.tipText}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
 
-      <View
-        style={[
-          styles.startBar,
-          { paddingBottom: bottomInset + 16, backgroundColor: colors.background, borderTopColor: colors.border },
-        ]}
-      >
+      <View style={[styles.startBar, { paddingBottom: bottomInset + 16, backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <TouchableOpacity
           style={[styles.startBtn, { backgroundColor: colors.primary }]}
           onPress={() => {
@@ -262,9 +298,7 @@ export default function AdventureDetailScreen() {
           }}
         >
           <Ionicons name="play" size={22} color={colors.primaryForeground} />
-          <Text style={[styles.startBtnText, { color: colors.primaryForeground }]}>
-            Start Adventure
-          </Text>
+          <Text style={[styles.startBtnText, { color: colors.primaryForeground }]}>Start Adventure</Text>
           <CoinBadge amount={totalCoins} size="sm" />
         </TouchableOpacity>
       </View>
@@ -275,44 +309,29 @@ export default function AdventureDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingBottom: 12 },
   headerActions: { flexDirection: "row", gap: 4 },
   headerActionBtn: { padding: 8 },
   content: { paddingHorizontal: 20, gap: 20, paddingTop: 8 },
   titleRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   title: { fontSize: 26, fontWeight: "800", lineHeight: 32 },
   description: { fontSize: 15, lineHeight: 22, marginTop: 8 },
-  templateBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginTop: 4,
-  },
+  templateBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, marginTop: 4 },
   templateBadgeText: { fontSize: 11, fontWeight: "700" },
   lastCompleted: { fontSize: 12, marginTop: -8 },
   metaRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   metaText: { fontSize: 13, fontWeight: "600" },
+  legendCard: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 8 },
+  legendHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendTitle: { fontSize: 12, fontWeight: "700" },
+  legendRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontSize: 11 },
   section: { gap: 10 },
   sectionTitle: { fontSize: 17, fontWeight: "700" },
-  stepCard: {
-    borderRadius: 14,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  stepCard: { borderRadius: 14, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
   stepMedia: { width: "100%", height: 160 },
   stepCardContent: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14 },
   stepNum: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 1 },
@@ -321,30 +340,12 @@ const styles = StyleSheet.create({
   stepText: { fontSize: 15, lineHeight: 22 },
   tipBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 8, borderRadius: 8 },
   tipText: { fontSize: 12, flex: 1, lineHeight: 17 },
-  startBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-  },
-  startBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
+  startBar: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
+  startBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12, paddingVertical: 16, borderRadius: 16 },
   startBtnText: { fontSize: 18, fontWeight: "700" },
   inlineConfirm: { flexDirection: "row", alignItems: "center", gap: 6 },
   inlineCancelBtn: { paddingHorizontal: 10, paddingVertical: 6 },
   inlineCancelText: { fontSize: 13, fontWeight: "600" },
-  inlineDeleteBtn: {
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    minWidth: 56,
-    alignItems: "center",
-  },
+  inlineDeleteBtn: { backgroundColor: "#EF4444", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, minWidth: 56, alignItems: "center" },
   inlineDeleteText: { fontSize: 13, fontWeight: "700", color: "#fff" },
 });

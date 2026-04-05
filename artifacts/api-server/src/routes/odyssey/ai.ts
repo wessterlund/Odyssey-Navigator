@@ -12,6 +12,40 @@ function calcAge(birthday: string): number {
   return Math.floor((now.getTime() - b.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 }
 
+function buildLearnerContext(learner: any, age: number): string {
+  const capabilities = (learner.capabilities || []).join(", ") || "Not specified";
+  const challenges = (learner.challenges || []).join(", ") || "Not specified";
+  const interests = (learner.interests || []).join(", ") || "Not specified";
+  const favorites = (learner.favorites || []).join(", ") || "Not specified";
+  const therapies = (learner.therapies || []).join(", ") || "None";
+  const diagnosis = learner.diagnosis || "Not specified";
+
+  const isMinimalVerbal = challenges.toLowerCase().includes("verbal") ||
+    diagnosis.toLowerCase().includes("nonverbal") ||
+    diagnosis.toLowerCase().includes("non-verbal");
+
+  const isSeverely = diagnosis.toLowerCase().includes("severe") ||
+    challenges.toLowerCase().includes("self-injur") ||
+    challenges.toLowerCase().includes("aggress");
+
+  const defaults = `Default assumptions (apply when data is missing): visual-first, most-to-least prompting, continuous reinforcement, moderate–severe ASD profile.`;
+
+  return `Child Profile:
+- Name: ${learner.name}
+- Age: ${age}
+- Diagnosis: ${diagnosis}
+- Communication: ${isMinimalVerbal ? "Minimally verbal / non-verbal" : "Verbal or emerging verbal"}
+- Severity: ${isSeverely ? "Moderate–severe" : "Mild–moderate"}
+- Therapies: ${therapies}
+- Capabilities: ${capabilities}
+- Challenges: ${challenges}
+- Interests: ${interests}
+- Favorites: ${favorites}
+- Learning Goals: ${(learner.learningGoals || []).join(", ") || "Not specified"}
+
+${defaults}`;
+}
+
 router.post("/generate-adventure", async (req, res) => {
   const { learnerId, goal } = req.body;
   if (!learnerId || !goal) return res.status(400).json({ error: "learnerId and goal required" });
@@ -20,55 +54,87 @@ router.post("/generate-adventure", async (req, res) => {
   if (!learner) return res.status(404).json({ error: "Learner not found" });
 
   const age = calcAge(learner.birthday);
+  const learnerContext = buildLearnerContext(learner, age);
 
-  const prompt = `You are an expert in autism support and behavioral learning.
+  const prompt = `You are a BCBA (Board Certified Behavior Analyst) and special education specialist.
+Your task: generate a clinically structured, adaptive Adventure using TEACCH, Task Analysis, and ABA principles.
 
-Generate a structured learning activity for a child.
-
-Child Profile:
-- Name: ${learner.name}
-- Age: ${age}
-- Diagnosis: ${learner.diagnosis || "Not specified"}
-- Capabilities: ${(learner.capabilities || []).join(", ") || "Not specified"}
-- Challenges: ${(learner.challenges || []).join(", ") || "Not specified"}
-- Interests: ${(learner.interests || []).join(", ") || "Not specified"}
-- Favorites: ${(learner.favorites || []).join(", ") || "Not specified"}
-- Learning Goals: ${(learner.learningGoals || []).join(", ") || "Not specified"}
+${learnerContext}
 
 Goal: ${goal}
 
-Return ONLY valid JSON with this exact structure:
+Return ONLY valid JSON with this exact structure. Use short bullet-style text everywhere — no long paragraphs.
+
 {
-  "title": "Adventure title",
-  "description": "Brief description of the adventure",
+  "title": "Short, motivating adventure title",
+  "description": "1 sentence overview of the skill.",
   "coinsPerStep": 2,
   "completionBonus": 5,
+
+  "teacch": {
+    "environmentSetup": "Short description: where, how the space is arranged, distractions removed",
+    "visualSchedule": "What visual cues/cards are used to show the sequence",
+    "workSystem": "Clear start cue → clear finish cue (e.g. 'box on left = to do, box on right = done')"
+  },
+
+  "promptingPlan": {
+    "strategy": "Most-to-Least",
+    "hierarchy": ["Full physical", "Partial physical", "Gestural", "Verbal", "Independent"],
+    "fadingPlan": "Reduce 1 prompt level after 2 consecutive successful trials"
+  },
+
+  "reinforcementPlan": {
+    "schedule": "Continuous (every step) — shift to 3:1 after 5 successful sessions",
+    "type": "Immediate preferred sensory or tangible + verbal praise",
+    "reinforcers": ["Based on favorites — e.g. preferred toy, high five, sticker"],
+    "saturationPrevention": "Rotate reinforcers every 2–3 sessions"
+  },
+
+  "videoModeling": {
+    "recommended": true,
+    "type": "POV (point-of-view) or adult model",
+    "duration": "30–60 seconds",
+    "description": "Short description of what the video should show"
+  },
+
+  "generalizationPlan": [
+    "Practice with different adult (parent + teacher)",
+    "Change 1 material (different brand/color)",
+    "Practice in 2 different settings"
+  ],
+
+  "dataTracking": {
+    "metrics": ["Steps completed independently", "Prompt level per step", "% independence per session"]
+  },
+
   "steps": [
     {
-      "instruction": "Simple, clear instruction",
-      "mediaSuggestion": "Brief description of what image would help",
-      "tip": "Tip for parent/teacher"
+      "instruction": "One simple, concrete action (1 sentence max)",
+      "mediaSuggestion": "What image/video would help show this step",
+      "tip": "Short coaching tip for parent/teacher (max 15 words)",
+      "promptLevel": "Full Physical",
+      "supportStrategy": "Specific prompt action (e.g. 'Hand-over-hand from behind. Say the word as you assist.')"
     }
   ],
+
   "rewardSuggestions": [
-    {
-      "name": "Reward name",
-      "cost": 10
-    }
+    { "name": "Reward name", "cost": 10 }
   ]
 }
 
-Rules:
-- Keep instructions simple and concrete (1-2 sentences max)
-- Generate 4-7 steps maximum
-- Adapt difficulty to the child's age and capabilities
-- Use the child's interests and favorites in examples
-- Each tip should be actionable and specific
-- Coin costs should reflect step difficulty`;
+RULES:
+- Steps: 5–8 micro steps (task analysis — break each action into its smallest parts)
+- Keep every text field SHORT — bullet-point style, no paragraphs
+- Prompt levels must be one of: "Full Physical" | "Partial Physical" | "Gestural" | "Verbal" | "Independent"
+- Assign prompt level per step: harder steps = higher prompt level
+- Reinforcers MUST match the child's favorites/interests
+- If communication is minimal: use visual-first strategies, physical prompts first
+- If learner has sensory challenges: choose sensory-compatible reinforcers
+- Video modeling: recommended for motor/ADL skills`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 2048,
+    max_completion_tokens: 3000,
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });
@@ -92,28 +158,63 @@ router.post("/suggest-rewards", async (req, res) => {
   if (!learner) return res.status(404).json({ error: "Learner not found" });
 
   const age = calcAge(learner.birthday);
+  const challenges = (learner.challenges || []).join(", ") || "";
+  const sensoryNote = challenges.toLowerCase().includes("sensory")
+    ? "This learner has sensory sensitivities — prioritize sensory-compatible reinforcers."
+    : "";
 
-  const prompt = `You are an expert in behavioral therapy for children.
+  const prompt = `You are a BCBA specializing in reinforcement systems for children with ASD.
+Generate an intelligent, personalized reward system — NOT generic rewards.
 
-Suggest personalized rewards for a child with the following profile:
+Child Profile:
 - Age: ${age}
 - Interests: ${(learner.interests || []).join(", ") || "Not specified"}
 - Favorites: ${(learner.favorites || []).join(", ") || "Not specified"}
-- Challenges: ${(learner.challenges || []).join(", ") || "Not specified"}
+- Challenges: ${challenges || "Not specified"}
+${sensoryNote}
+
+Your reward system must:
+1. Match reinforcers to the child's specific preferences (interests + favorites)
+2. Include a reinforcement schedule recommendation
+3. Recommend token economy if appropriate
+4. Include rotation guidance to prevent saturation
+5. Consider sensory profile if relevant
 
 Return ONLY valid JSON:
 {
-  "smallRewards": [{"name": "...", "cost": 5}, ...],
-  "mediumRewards": [{"name": "...", "cost": 15}, ...],
-  "bigRewards": [{"name": "...", "cost": 30}, ...]
+  "reinforcementSchedule": {
+    "phase": "Continuous",
+    "recommendation": "1 short sentence: when and how to give reward",
+    "transition": "1 short sentence: when to shift to intermittent schedule"
+  },
+  "tokenEconomy": {
+    "recommended": true,
+    "system": "Short description (e.g. '5 tokens = 10 min preferred activity')",
+    "reason": "1 sentence why token economy fits this learner"
+  },
+  "rotationStrategy": "Short tip: how often to rotate reinforcers to prevent saturation",
+  "adaptiveRule": "IF learner shows low motivation → switch to highest-preference item immediately",
+  "smallRewards": [
+    {"name": "...", "cost": 5, "type": "sensory|activity|tangible|social", "why": "Short reason tied to learner interests"}
+  ],
+  "mediumRewards": [
+    {"name": "...", "cost": 15, "type": "activity|tangible|social", "why": "Short reason"}
+  ],
+  "bigRewards": [
+    {"name": "...", "cost": 30, "type": "activity|tangible|social", "why": "Short reason"}
+  ]
 }
 
-Each category should have 3-4 suggestions. Small rewards: 3-8 coins. Medium: 10-20 coins. Big: 25-50 coins.
-Make rewards specific to the child's interests and age-appropriate.`;
+Rules:
+- 3–4 rewards per category
+- Small: 3–8 coins. Medium: 10–20 coins. Big: 25–50 coins
+- Every reward MUST connect to the child's specific interests/favorites
+- No generic rewards (no "sticker chart" without context)
+- Token economy: recommended for learners who can understand delayed reinforcement`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 1024,
+    max_completion_tokens: 1500,
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });
@@ -130,38 +231,49 @@ Make rewards specific to the child's interests and age-appropriate.`;
 });
 
 router.post("/copilot-tip", async (req, res) => {
-  const { learnerId, stepInstruction, attempts, elapsedSeconds } = req.body;
+  const { learnerId, stepInstruction, attempts, elapsedSeconds, currentPromptLevel } = req.body;
   if (!learnerId || !stepInstruction) return res.status(400).json({ error: "learnerId and stepInstruction required" });
 
   const [learner] = await db.select().from(learnersTable).where(eq(learnersTable.id, learnerId));
   if (!learner) return res.status(404).json({ error: "Learner not found" });
 
   const age = calcAge(learner.birthday);
+  const isStruggling = (attempts || 1) >= 3 || (elapsedSeconds || 0) >= 60;
+  const promptContext = currentPromptLevel
+    ? `Current prompt level in use: ${currentPromptLevel}`
+    : "Prompt level: unknown — default to physical prompt";
 
-  const prompt = `You are an expert autism support specialist providing a quick tip to a parent or teacher.
+  const prompt = `You are a BCBA providing a real-time support tip using ABA principles.
 
-Child Profile:
-- Age: ${age}
-- Capabilities: ${(learner.capabilities || []).join(", ")}
-- Challenges: ${(learner.challenges || []).join(", ")}
-- Interests: ${(learner.interests || []).join(", ")}
+Child: Age ${age}
+Capabilities: ${(learner.capabilities || []).join(", ") || "not specified"}
+Challenges: ${(learner.challenges || []).join(", ") || "not specified"}
+Interests: ${(learner.interests || []).join(", ") || "not specified"}
 
 Current step: "${stepInstruction}"
-Attempts so far: ${attempts || 1}
-Time elapsed: ${elapsedSeconds || 0} seconds
+${promptContext}
+Attempts: ${attempts || 1}
+Time on step: ${elapsedSeconds || 0} seconds
+${isStruggling ? "⚠ Learner is STRUGGLING — increase prompt level or simplify." : ""}
 
-The child is struggling with this step. Provide ONE very short, actionable tip (max 15 words) for the parent/teacher to help right now. Examples of good tips: "Model the action first, then guide the child's hand", "Break into smaller steps", "Use their favorite toy as motivation".
+Adaptive rules to apply:
+- If failing (3+ attempts or 60+ seconds) → increase prompt level (more support), simplify task, increase reinforcement
+- If prompt dependent → introduce time delay before prompting
+- If low motivation → suggest switching to highest-preference reinforcer
+
+Give ONE short, actionable tip (max 15 words) for the adult helping right now.
+Examples: "Move to full physical prompt — guide hands gently from behind", "Offer their favorite [item] immediately after any attempt"
 
 Return ONLY the tip text, no JSON, no quotes.`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 100,
+    max_completion_tokens: 80,
     messages: [{ role: "user", content: prompt }],
   });
 
   const tip = response.choices[0]?.message?.content?.trim();
-  res.json({ tip: tip || "Try breaking the step into smaller parts" });
+  res.json({ tip: tip || "Move to full physical prompt — guide hands gently from behind" });
 });
 
 router.post("/adaptive-suggestions", async (req, res) => {
@@ -173,32 +285,55 @@ router.post("/adaptive-suggestions", async (req, res) => {
 
   const age = calcAge(learner.birthday);
 
-  const prompt = `You are an expert in adaptive learning for children with special needs.
+  const data = performanceData || [];
+  const totalAttempts = data.reduce((sum: number, d: any) => sum + (d.attempts || 1), 0);
+  const totalSuccess = data.filter((d: any) => d.success).length;
+  const failRate = data.length > 0 ? (data.length - totalSuccess) / data.length : 0;
+  const avgAttempts = data.length > 0 ? totalAttempts / data.length : 1;
 
-Child Profile:
-- Age: ${age}
-- Challenges: ${(learner.challenges || []).join(", ")}
-- Capabilities: ${(learner.capabilities || []).join(", ")}
+  const performanceSummary = data.length === 0
+    ? "No performance data yet."
+    : `${totalSuccess}/${data.length} steps successful. Avg attempts per step: ${avgAttempts.toFixed(1)}. Failure rate: ${Math.round(failRate * 100)}%.`;
 
-Performance Data:
-${JSON.stringify(performanceData || [], null, 2)}
+  const adaptiveContext =
+    failRate > 0.5 ? "⚠ LEARNER IS STRUGGLING — increase prompts, simplify steps, increase reinforcement frequency"
+    : failRate < 0.2 && avgAttempts < 1.5 ? "✅ LEARNER IS SUCCEEDING — consider fading prompts, increasing independence, slightly delaying reinforcement"
+    : avgAttempts > 3 ? "⚠ PROMPT DEPENDENCY DETECTED — introduce time delay before prompting, gradually reduce intensity"
+    : "Performance is moderate — monitor for trends";
 
-Based on this performance data, provide 2-3 actionable suggestions to improve the learning activity.
+  const prompt = `You are a BCBA analyzing adaptive learning data for a child with ASD.
+
+Child: Age ${age}
+Challenges: ${(learner.challenges || []).join(", ") || "not specified"}
+Capabilities: ${(learner.capabilities || []).join(", ") || "not specified"}
+
+Performance Summary: ${performanceSummary}
+Adaptive Signal: ${adaptiveContext}
+
+Adaptive rules to apply:
+• IF failing (>50% failure rate) → increase prompt level, simplify task, increase reinforcement
+• IF succeeding (<20% failure, <1.5 avg attempts) → fade prompts, increase independence, delay reinforcement
+• IF prompt dependent (avg >3 attempts) → introduce time delay, reduce prompt intensity
+• IF low motivation detected → switch reinforcer, consider token system
+
+Provide 2–3 specific, actionable suggestions using these rules.
 
 Return ONLY valid JSON:
 {
+  "adaptiveSignal": "failing|succeeding|prompt_dependent|moderate",
   "suggestions": [
     {
-      "type": "simplify" | "motivate" | "break_down" | "adjust_time",
-      "title": "Short title",
-      "description": "One sentence description"
+      "type": "increase_prompts|fade_prompts|simplify|increase_reinforcement|switch_reinforcer|add_time_delay",
+      "title": "Short title (5 words max)",
+      "description": "One clear sentence — what to do and why",
+      "urgency": "immediate|this_week|monitor"
     }
   ]
 }`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_completion_tokens: 512,
+    max_completion_tokens: 600,
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });

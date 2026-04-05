@@ -1,0 +1,181 @@
+You are updating an EXISTING AI feature inside the Odyssey platform.
+
+DO NOT rebuild the system.
+DO NOT create a new AI.
+You must EXTEND the current AI so that Adventure creation and Reward generation become clinically structured and adaptive.
+
+---
+
+## 🔥 OBJECTIVE
+
+Enhance the current AI so that EVERY generated Adventure and Reward system is based on:
+
+* TEACCH (Structured Teaching)
+* Task Analysis
+* Prompting
+* Positive Reinforcement
+* Video Modeling (optional but recommended)
+
+This enhancement must integrate seamlessly into the existing Voyage Path module.
+
+---
+
+## ⚙️ IMPLEMENTATION INSTRUCTIONS
+
+### 1. MODIFY EXISTING ADVENTURE GENERATION LOGIC
+
+Update the AI so that instead of generating generic activities, it produces structured Adventures using this internal framework:
+
+Each Adventure must now include:
+
+* Goal (functional, real-life skill)
+* TEACCH Structure:
+
+  * Environment setup
+  * Visual schedule
+  * Work system (clear start → finish)
+* Task Analysis:
+
+  * Step-by-step breakdown (micro steps)
+* Video Modeling Plan (if applicable):
+
+  * Type (POV, self, peer, adult)
+  * Short duration (30–120 seconds)
+* Prompting Plan:
+
+  * Strategy (Most-to-Least by default for moderate/severe ASD)
+  * Prompt hierarchy
+  * Fading plan
+* Reinforcement Plan:
+
+  * Immediate reinforcement strategy
+  * Type of reinforcers (based on learner profile)
+* Generalization Plan:
+
+  * Across settings, people, materials
+* Data Tracking:
+
+  * Step completion
+  * Prompt level
+  * Independence %
+
+---
+
+### 2. ADD INTELLIGENT REWARD GENERATION SYSTEM
+
+Upgrade the reward logic so it is NOT generic.
+
+The AI must:
+
+* Select rewards based on:
+
+  * Learner preferences
+  * Sensory profile
+  * Motivation level
+* Recommend:
+
+  * Immediate reinforcement (early learning)
+  * Token economy (if appropriate)
+* Define:
+
+  * Reinforcement schedule:
+
+    * Start: Continuous reinforcement
+    * Then: Gradually shift to intermittent
+* Prevent:
+
+  * Reward saturation (rotate reinforcers)
+
+---
+
+### 3. ADD ADAPTIVE AI RULES (CRITICAL)
+
+Embed logic so the system adjusts automatically:
+
+* IF learner is failing:
+  → Increase prompt level
+  → Simplify task steps
+  → Increase reinforcement frequency
+
+* IF learner is succeeding:
+  → Fade prompts
+  → Increase independence
+  → Delay reinforcement slightly
+
+* IF learner shows low motivation:
+  → Switch to higher-preference reinforcer
+  → Introduce token system
+
+* IF learner shows prompt dependency:
+  → Introduce time delay
+  → Reduce prompt intensity
+
+---
+
+### 4. LEARNER PROFILE INTEGRATION (REQUIRED)
+
+Ensure the AI USES existing learner data:
+
+* Communication level (verbal / minimally verbal)
+* Severity (moderate / severe)
+* Sensory preferences
+* Known reinforcers
+* Prompt dependency level
+
+If data is missing:
+→ AI must make safe default assumptions for moderate–severe ASD:
+
+* Visual-first
+* High reinforcement
+* Most-to-least prompting
+
+---
+
+### 5. UI / OUTPUT FORMAT UPDATE
+
+Update the Adventure output UI to clearly show:
+
+* Step-by-step tasks (Task Analysis)
+* Visual structure indicators (TEACCH)
+* Prompt level per step
+* Reward attached to each step or completion
+
+Make it easy for:
+
+* Teachers
+* Parents
+
+to follow WITHOUT training.
+
+---
+
+### 6. CONSTRAINTS (VERY IMPORTANT)
+
+* DO NOT increase complexity in the UI
+* KEEP outputs simple, structured, and visual-first
+* AVOID long paragraphs in generated content
+* USE bullet points and clear sections
+
+---
+
+### 7. SUCCESS CRITERIA
+
+The update is successful if:
+
+* Adventures are no longer generic
+* Each activity is broken into steps
+* Rewards are personalized and dynamic
+* Prompting and fading are clearly defined
+* The system adapts based on learner performance
+
+---
+
+## 🚀 FINAL GOAL
+
+Transform the Odyssey AI from:
+→ Activity generator
+
+into:
+→ Adaptive intervention engine that promotes independence in learners with moderate to severe ASD.
+
+Ensure all updates integrate cleanly with the current codebase and do not break existing functionality.

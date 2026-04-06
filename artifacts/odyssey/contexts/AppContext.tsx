@@ -45,6 +45,9 @@ export interface Adventure {
   coinsPerStep: number;
   completionBonus: number;
   isTemplate?: boolean;
+  isDraft?: boolean;
+  isPublished?: boolean;
+  thumbnailUrl?: string;
   usageCount?: number;
   lastCompletedAt?: string;
   steps: Step[];

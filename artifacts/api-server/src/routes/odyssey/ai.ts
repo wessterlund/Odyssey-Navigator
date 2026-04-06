@@ -454,6 +454,85 @@ Rules:
   }
 });
 
+router.post("/voyage-completion-analysis", async (req, res) => {
+  const { title, description, adventures, logs, iepData, learnerId } = req.body;
+
+  let learnerCtx = "";
+  if (learnerId) {
+    const [learner] = await db.select().from(learnersTable).where(eq(learnersTable.id, learnerId));
+    if (learner) {
+      const age = calcAge(learner.birthday);
+      learnerCtx = buildLearnerContext(learner, age);
+    }
+  }
+
+  const completedCount = (adventures || []).filter((a: any) =>
+    (logs || []).some((l: any) => l.adventureId === a.id && l.completionStatus === "completed")
+  ).length;
+  const totalAdventures = (adventures || []).length;
+  const completionRate = totalAdventures > 0 ? Math.round((completedCount / totalAdventures) * 100) : 0;
+
+  const adventureSummary = (adventures || []).map((a: any) => {
+    const advLogs = (logs || []).filter((l: any) => l.adventureId === a.id);
+    const done = advLogs.some((l: any) => l.completionStatus === "completed");
+    return `- "${a.title}": ${done ? "COMPLETED" : `not completed (${advLogs.length} attempt(s))`}`;
+  }).join("\n");
+
+  const goalsSummary = iepData?.goals?.map((g: any) =>
+    `  - [${g.domain}] ${g.shortTitle}: criterion = "${g.criterion}"`
+  ).join("\n") || "No IEP goals on record.";
+
+  const systemMsg = `You are a Board Certified Behavior Analyst (BCBA) reviewing whether a voyage path (behavior learning program) is ready to be completed/closed.
+
+Analyze the data and provide:
+1. A clear recommendation: "ready" or "not_ready"
+2. A confidence score 0-100
+3. A clinically-informed reasoning paragraph (2-3 sentences)
+4. Up to 3 specific goal observations
+5. If not ready: what remains before closing
+
+${learnerCtx}
+
+Respond ONLY with valid JSON matching:
+{
+  "recommendation": "ready" | "not_ready",
+  "confidence": number,
+  "reasoning": string,
+  "goalObservations": [{ "goal": string, "status": "met" | "emerging" | "not_met", "note": string }],
+  "remainingSteps": string[]
+}`;
+
+  const userMsg = `Voyage Path: "${title}"
+Description: ${description || "None"}
+Adventures: ${totalAdventures} total, ${completedCount} completed (${completionRate}% completion rate)
+
+Adventure Progress:
+${adventureSummary}
+
+IEP Goals:
+${goalsSummary}
+
+Should this voyage path be marked as completed?`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: systemMsg },
+      { role: "user", content: userMsg },
+    ],
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) return res.status(500).json({ error: "No AI response" });
+
+  try {
+    res.json(JSON.parse(content));
+  } catch {
+    res.status(500).json({ error: "Failed to parse AI response" });
+  }
+});
+
 router.post("/performance", async (req, res) => {
   const parsed = insertPerformanceSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error });

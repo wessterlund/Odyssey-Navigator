@@ -159,8 +159,8 @@ export default function AdventuresScreen() {
   };
 
   const myAdventures = adventures.filter((a) => !a.isTemplate);
-  const draftAdventures = myAdventures.filter((a) => !a.steps || a.steps.length === 0);
-  const activeAdventures = myAdventures.filter((a) => a.steps && a.steps.length > 0);
+  const draftAdventures = myAdventures.filter((a) => a.isDraft === true && !a.isPublished);
+  const activeAdventures = myAdventures.filter((a) => a.isPublished === true);
 
   if (!currentLearner) {
     return (
@@ -294,7 +294,7 @@ export default function AdventuresScreen() {
       </ScrollView>
 
       {/* Add new adventure */}
-      <View style={[styles.addBarContainer, { paddingBottom: bottomInset + 8 }]}>
+      <View style={[styles.addBarContainer, { paddingBottom: bottomInset + 8, backgroundColor: colors.background }]}>
         <TouchableOpacity
           style={[styles.addBar, { backgroundColor: colors.primary }]}
           activeOpacity={0.88}
@@ -412,6 +412,11 @@ const styles = StyleSheet.create({
   addBarContainer: {
     paddingHorizontal: H_PAD,
     paddingTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 8,
   },
   addBar: {
     borderRadius: 50,

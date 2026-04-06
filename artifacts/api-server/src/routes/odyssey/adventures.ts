@@ -61,7 +61,12 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const { steps: stepsData, ...adventureData } = req.body;
-  const parsed = insertAdventureSchema.safeParse(adventureData);
+  const dataWithDefaults = {
+    isDraft: true,
+    isPublished: false,
+    ...adventureData,
+  };
+  const parsed = insertAdventureSchema.safeParse(dataWithDefaults);
   if (!parsed.success) return res.status(400).json({ error: parsed.error });
 
   const [adventure] = await db.insert(adventuresTable).values(parsed.data).returning();

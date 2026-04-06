@@ -183,7 +183,7 @@ export default function CreateAdventureScreen() {
     setGenerating(false);
   };
 
-  const saveAdventure = async () => {
+  const saveAdventure = async (action: "draft" | "publish" | "preview") => {
     if (!currentLearner || !title.trim()) {
       Alert.alert("Required", "Please enter a title.");
       return;
@@ -202,6 +202,9 @@ export default function CreateAdventureScreen() {
         return { ...s, tip };
       });
 
+      const isDraft = action !== "publish";
+      const isPublished = action === "publish";
+
       const res = await fetch(`${apiBase()}/adventures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -211,13 +214,20 @@ export default function CreateAdventureScreen() {
           description: description || null,
           coinsPerStep: parseInt(coinsPerStep) || 2,
           completionBonus: parseInt(completionBonus) || 5,
+          isDraft,
+          isPublished,
           steps: stepsToSave,
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
+      const saved = await res.json();
       await loadAdventures(currentLearner.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      if (action === "preview") {
+        router.replace(`/adventure/preview/${saved.id}`);
+      } else {
+        router.back();
+      }
     } catch {
       Alert.alert("Error", "Failed to save adventure.");
     }
@@ -304,7 +314,7 @@ export default function CreateAdventureScreen() {
           <Ionicons name="close" size={26} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>New Adventure</Text>
-        <TouchableOpacity onPress={saveAdventure} disabled={saving}>
+        <TouchableOpacity onPress={() => saveAdventure("draft")} disabled={saving}>
           {saving ? (
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
@@ -643,6 +653,40 @@ export default function CreateAdventureScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Bottom action bar */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: bottomInset + 8 }]}>
+        <TouchableOpacity
+          style={[styles.bottomBtnOutline, { borderColor: colors.border }]}
+          disabled={saving}
+          onPress={() => saveAdventure("preview")}
+        >
+          <Ionicons name="eye-outline" size={18} color={colors.foreground} />
+          <Text style={[styles.bottomBtnOutlineText, { color: colors.foreground }]}>Preview</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.bottomBtnOutline, { borderColor: colors.primary }]}
+          disabled={saving}
+          onPress={() => saveAdventure("draft")}
+        >
+          <Ionicons name="bookmark-outline" size={18} color={colors.primary} />
+          <Text style={[styles.bottomBtnOutlineText, { color: colors.primary }]}>Save as Draft</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.bottomBtnFill, { backgroundColor: colors.primary }]}
+          disabled={saving}
+          onPress={() => saveAdventure("publish")}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.primaryForeground} />
+          ) : (
+            <>
+              <Ionicons name="rocket-outline" size={18} color={colors.primaryForeground} />
+              <Text style={[styles.bottomBtnFillText, { color: colors.primaryForeground }]}>Publish</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -713,4 +757,9 @@ const styles = StyleSheet.create({
   replaceMenuText: { fontSize: 13, fontWeight: "600" },
   addStepBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderStyle: "dashed" },
   addStepText: { fontSize: 15, fontWeight: "600" },
+  bottomBar: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 10, borderTopWidth: 1 },
+  bottomBtnOutline: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
+  bottomBtnOutlineText: { fontSize: 13, fontWeight: "700" },
+  bottomBtnFill: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12 },
+  bottomBtnFillText: { fontSize: 13, fontWeight: "700" },
 });

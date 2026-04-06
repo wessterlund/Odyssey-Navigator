@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Platform,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -101,6 +102,15 @@ export default function VoyagePathScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [analysisModal, setAnalysisModal] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<{
+    recommendation: "ready" | "not_ready";
+    confidence: number;
+    reasoning: string;
+    goalObservations: { goal: string; status: "met" | "emerging" | "not_met"; note: string }[];
+    remainingSteps: string[];
+  } | null>(null);
 
   const fetch_ = useCallback(async () => {
     try {
@@ -129,6 +139,29 @@ export default function VoyagePathScreen() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const openCompletionAnalysis = async () => {
+    if (!voyage) return;
+    setAnalysis(null);
+    setAnalysisModal(true);
+    setAnalysisLoading(true);
+    try {
+      const res = await fetch(`${apiBase()}/ai/voyage-completion-analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          learnerId: voyage.learnerId,
+          title: voyage.title,
+          description: voyage.description,
+          adventures: voyage.adventures,
+          logs: voyage.logs,
+          iepData: voyage.iepData,
+        }),
+      });
+      if (res.ok) setAnalysis(await res.json());
+    } catch {}
+    setAnalysisLoading(false);
   };
 
   const getLogForAdventure = (adventureId: number) => {
@@ -353,6 +386,19 @@ export default function VoyagePathScreen() {
                           </View>
                         )}
                       </View>
+                      {status === "completed" && (
+                        <TouchableOpacity
+                          style={[styles.editMediaBtn, { backgroundColor: `${colors.primary}15` }]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.push(`/adventure/${adv.id}?editMedia=true`);
+                          }}
+                        >
+                          <Ionicons name="camera-outline" size={12} color={colors.primary} />
+                          <Text style={[styles.editMediaBtnText, { color: colors.primary }]}>Edit Media & Thumbnail</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
                   </TouchableOpacity>
@@ -455,35 +501,200 @@ export default function VoyagePathScreen() {
                 <>
                   <Ionicons name="rocket-outline" size={20} color={colors.primaryForeground} />
                   <Text style={[styles.actionBtnText, { color: colors.primaryForeground }]}>
-                    Launch Voyage Path
+                    Start Voyage Path
                   </Text>
                 </>
               )}
             </TouchableOpacity>
           )}
           {voyage.status === "active" && (
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: "#10B981" }]}
-              disabled={actionLoading}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                changeStatus("completed");
-              }}
-            >
-              {actionLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={[styles.actionBtnText, { color: "#fff" }]}>
-                    Complete Voyage Path
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={styles.activeActionRow}>
+              <TouchableOpacity
+                style={[styles.actionBtnOutline, { borderColor: colors.primary }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const learner = learners.find((l) => l.id === voyage.learnerId);
+                  if (learner) router.push(`/profile/${learner.id}/progress`);
+                }}
+              >
+                <Ionicons name="bar-chart-outline" size={18} color={colors.primary} />
+                <Text style={[styles.actionBtnOutlineText, { color: colors.primary }]}>
+                  Show Progress
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtnFill, { backgroundColor: "#10B981" }]}
+                disabled={actionLoading}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  openCompletionAnalysis();
+                }}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    <Text style={[styles.actionBtnFillText, { color: "#fff" }]}>
+                      Complete Voyage Path
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
+
+      {/* AI Completion Analysis Modal */}
+      <Modal visible={analysisModal} transparent animationType="slide" onRequestClose={() => setAnalysisModal(false)}>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.background }]}>
+            <View style={modalStyles.header}>
+              <View style={[modalStyles.headerIcon, { backgroundColor: "#8B5CF620" }]}>
+                <Ionicons name="sparkles" size={20} color="#8B5CF6" />
+              </View>
+              <Text style={[modalStyles.headerTitle, { color: colors.foreground }]}>
+                Completion Analysis
+              </Text>
+              <TouchableOpacity onPress={() => setAnalysisModal(false)} style={modalStyles.closeBtn}>
+                <Ionicons name="close" size={22} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            {analysisLoading ? (
+              <View style={modalStyles.loadingState}>
+                <ActivityIndicator size="large" color="#8B5CF6" />
+                <Text style={[modalStyles.loadingText, { color: colors.mutedForeground }]}>
+                  Analyzing voyage path with BCBA framework…
+                </Text>
+              </View>
+            ) : analysis ? (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={modalStyles.body}>
+                {/* Recommendation pill */}
+                <View style={[modalStyles.recPill, {
+                  backgroundColor: analysis.recommendation === "ready" ? "#10B98118" : "#F5950018",
+                  borderColor: analysis.recommendation === "ready" ? "#10B981" : "#F59500",
+                }]}>
+                  <Ionicons
+                    name={analysis.recommendation === "ready" ? "checkmark-circle" : "time-outline"}
+                    size={18}
+                    color={analysis.recommendation === "ready" ? "#10B981" : "#F59500"}
+                  />
+                  <Text style={[modalStyles.recText, {
+                    color: analysis.recommendation === "ready" ? "#10B981" : "#F59500",
+                  }]}>
+                    {analysis.recommendation === "ready" ? "Ready to Complete" : "Not Ready Yet"}{" "}
+                    <Text style={modalStyles.confidenceText}>({analysis.confidence}% confidence)</Text>
+                  </Text>
+                </View>
+
+                {/* Reasoning */}
+                <View style={[modalStyles.reasoningBlock, { backgroundColor: colors.card }]}>
+                  <Text style={[modalStyles.reasoningLabel, { color: colors.mutedForeground }]}>Clinical Assessment</Text>
+                  <Text style={[modalStyles.reasoningText, { color: colors.foreground }]}>{analysis.reasoning}</Text>
+                </View>
+
+                {/* Goal observations */}
+                {analysis.goalObservations.length > 0 && (
+                  <View style={modalStyles.observationsBlock}>
+                    <Text style={[modalStyles.obsLabel, { color: colors.mutedForeground }]}>Goal Observations</Text>
+                    {analysis.goalObservations.map((obs, i) => (
+                      <View key={i} style={[modalStyles.obsRow, { backgroundColor: colors.card }]}>
+                        <View style={[modalStyles.obsDot, {
+                          backgroundColor: obs.status === "met" ? "#10B981" : obs.status === "emerging" ? "#F59E0B" : "#EF4444"
+                        }]} />
+                        <View style={modalStyles.obsContent}>
+                          <Text style={[modalStyles.obsGoal, { color: colors.foreground }]}>{obs.goal}</Text>
+                          <Text style={[modalStyles.obsNote, { color: colors.mutedForeground }]}>{obs.note}</Text>
+                        </View>
+                        <View style={[modalStyles.obsStatusPill, {
+                          backgroundColor: obs.status === "met" ? "#10B98118" : obs.status === "emerging" ? "#F59E0B18" : "#EF444418"
+                        }]}>
+                          <Text style={[modalStyles.obsStatusText, {
+                            color: obs.status === "met" ? "#10B981" : obs.status === "emerging" ? "#F59E0B" : "#EF4444"
+                          }]}>{obs.status}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Remaining steps */}
+                {analysis.remainingSteps?.length > 0 && (
+                  <View style={[modalStyles.remainingBlock, { backgroundColor: "#F59E0B10", borderColor: "#F59E0B30" }]}>
+                    <Text style={[modalStyles.remainingLabel, { color: "#F59E0B" }]}>Still Needed</Text>
+                    {analysis.remainingSteps.map((step, i) => (
+                      <View key={i} style={modalStyles.remainingRow}>
+                        <Ionicons name="arrow-forward-circle" size={14} color="#F59E0B" />
+                        <Text style={[modalStyles.remainingText, { color: colors.foreground }]}>{step}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Action buttons */}
+                <View style={modalStyles.actionRow}>
+                  {analysis.recommendation === "not_ready" ? (
+                    <>
+                      <TouchableOpacity
+                        style={[modalStyles.modalBtnOutline, { borderColor: "#EF4444" }]}
+                        onPress={() => { setAnalysisModal(false); changeStatus("completed"); }}
+                      >
+                        <Text style={[modalStyles.modalBtnOutlineText, { color: "#EF4444" }]}>
+                          Complete Anyway
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[modalStyles.modalBtnFill, { backgroundColor: colors.primary }]}
+                        onPress={() => setAnalysisModal(false)}
+                      >
+                        <Ionicons name="arrow-forward" size={16} color={colors.primaryForeground} />
+                        <Text style={[modalStyles.modalBtnFillText, { color: colors.primaryForeground }]}>
+                          Keep Going
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={[modalStyles.modalBtnOutline, { borderColor: colors.border }]}
+                        onPress={() => setAnalysisModal(false)}
+                      >
+                        <Text style={[modalStyles.modalBtnOutlineText, { color: colors.mutedForeground }]}>
+                          Keep Going
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[modalStyles.modalBtnFill, { backgroundColor: "#10B981" }]}
+                        onPress={() => { setAnalysisModal(false); changeStatus("completed"); }}
+                      >
+                        <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                        <Text style={[modalStyles.modalBtnFillText, { color: "#fff" }]}>
+                          Complete Voyage Path
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
+            ) : (
+              <View style={modalStyles.loadingState}>
+                <Ionicons name="alert-circle-outline" size={32} color={colors.mutedForeground} />
+                <Text style={[modalStyles.loadingText, { color: colors.mutedForeground }]}>
+                  Analysis unavailable. You can still complete manually.
+                </Text>
+                <TouchableOpacity
+                  style={[modalStyles.modalBtnFill, { backgroundColor: "#10B981", marginTop: 8 }]}
+                  onPress={() => { setAnalysisModal(false); changeStatus("completed"); }}
+                >
+                  <Text style={[modalStyles.modalBtnFillText, { color: "#fff" }]}>Complete Anyway</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -914,4 +1125,73 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   actionBtnText: { fontSize: 16, fontWeight: "700" },
+  activeActionRow: { flexDirection: "row", gap: 10 },
+  actionBtnOutline: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  actionBtnOutlineText: { fontSize: 14, fontWeight: "700" },
+  actionBtnFill: {
+    flex: 1.4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  actionBtnFillText: { fontSize: 14, fontWeight: "700" },
+  editMediaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  editMediaBtnText: { fontSize: 11, fontWeight: "700" },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "90%", overflow: "hidden" },
+  header: { flexDirection: "row", alignItems: "center", gap: 10, padding: 18, paddingBottom: 12 },
+  headerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: "700" },
+  closeBtn: { padding: 4 },
+  loadingState: { padding: 32, alignItems: "center", gap: 14 },
+  loadingText: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+  body: { paddingHorizontal: 18, paddingBottom: 32, gap: 12 },
+  recPill: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
+  recText: { fontSize: 15, fontWeight: "700" },
+  confidenceText: { fontSize: 12, fontWeight: "500" },
+  reasoningBlock: { borderRadius: 12, padding: 14, gap: 6 },
+  reasoningLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  reasoningText: { fontSize: 14, lineHeight: 21 },
+  observationsBlock: { gap: 8 },
+  obsLabel: { fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  obsRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 10, borderRadius: 10 },
+  obsDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  obsContent: { flex: 1, gap: 2 },
+  obsGoal: { fontSize: 13, fontWeight: "600" },
+  obsNote: { fontSize: 12, lineHeight: 17 },
+  obsStatusPill: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
+  obsStatusText: { fontSize: 11, fontWeight: "700", textTransform: "capitalize" },
+  remainingBlock: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 8 },
+  remainingLabel: { fontSize: 12, fontWeight: "700" },
+  remainingRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  remainingText: { fontSize: 13, flex: 1, lineHeight: 18 },
+  actionRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  modalBtnOutline: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 14, borderRadius: 14, borderWidth: 1.5 },
+  modalBtnOutlineText: { fontSize: 14, fontWeight: "700" },
+  modalBtnFill: { flex: 1.4, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingVertical: 14, borderRadius: 14 },
+  modalBtnFillText: { fontSize: 14, fontWeight: "700" },
 });
